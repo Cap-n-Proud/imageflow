@@ -86,14 +86,6 @@ OCR_IMAGE = True
 COPY_TAGS_TO_IPTC = True
 MOVE_FILE = True
 
-CAPTION_IMAGE = True
-TAG_IMAGE = False
-REVERSE_GEOTAG = False
-CLASSIFY_FACES = False
-OCR_IMAGE = True
-COPY_TAGS_TO_IPTC = False
-MOVE_FILE = False
-
 # --------------------------- Image processor config ---------------------------
 FACE_TRAINING_DIR = "/mnt/Photos/005-PhotoBook/000-knownfaces/"
 REVERSE_GEO_URL = "https://api.opencagedata.com/geocode/v1/json?q="

@@ -297,7 +297,7 @@ class ProcessMedia:
         face_locations = face_recognition.face_locations(image)
         no = len(face_locations)
         self.logger.info(
-            "|Reverse Geocode| Number of faces detected: "
+            "|Classify Faces| Number of faces detected: "
             + str(no)
             + " in "
             + str(fname)
@@ -306,14 +306,14 @@ class ProcessMedia:
             # Loop through each person in the training directory
             if os.path.isfile(self.args.faceClassifierFile):
                 self.logger.debug(
-                    "|Reverse Geocode| Using classifier: "
+                    "|Classify Faces| Using classifier: "
                     + str(self.args.faceClassifierFile)
                 )
                 with open(self.args.faceClassifierFile, "rb") as fid:
                     clf = cPickle.load(fid)
             else:
                 self.logger.info(
-                    "|Reverse Geocode| Classifier file does not exist, training  it now."
+                    "|Classify Faces| Classifier file does not exist, training  it now."
                 )
                 train_dir = os.listdir(fm_config.FACE_CLASSIFIER_TRAIN_DIR)
                 for person in train_dir:
@@ -357,7 +357,7 @@ class ProcessMedia:
                 with open(str(self.args.faceClassifierFile), "wb") as fid:
                     cPickle.dump(clf, fid)
                 self.logger.info(
-                    "|Reverse Geocode| Classifier saved: "
+                    "|Classify Faces| Classifier saved: "
                     + str(self.args.faceClassifierFile)
                 )
             # Predict all the faces in the test image using the trained classifier
@@ -383,10 +383,7 @@ class ProcessMedia:
             command = "exiftool -overwrite_original " + faces + " '" + str(fname) + "'"
             res = os.system(command)
             self.logger.info(
-                "|Reverse Geocode| "
-                + str(names)
-                + " added as keywords to "
-                + str(fname)
+                "|Classify Faces| " + str(names) + " added as keywords to " + str(fname)
             )
         else:
             command = (
@@ -452,8 +449,30 @@ class ProcessMedia:
 
     # <delete><query>Id:298253</query></delete>&commit=true
 
+    async def move_file2(self, file_path, dest_base_folder):
+        import os
+        import datetime
+
+        # get the date the picture was taken
+        date_taken = datetime.datetime.fromtimestamp(os.path.getctime(file_path))
+
+        # create the destination folder if it doesn't exist
+        year = str(date_taken.year)
+        month = str(date_taken.month).zfill(2)
+        dest_folder = os.path.join(dest_base_folder, year, month)
+        if not os.path.exists(dest_folder):
+            os.makedirs(dest_folder)
+            os.chmod(dest_folder, 0o777)
+
+        # move the file to the destination folder and update the file's timestamp
+        dest_path = os.path.join(dest_folder, os.path.basename(file_path))
+        os.rename(file_path, dest_path)
+        # os.chmod(dest_path, 0o777)
+        os.utime(dest_path, None)
+        self.logger.info(f"|Move File| Moved {file_path} to {dest_path}")
+
     # function that moves file to a directory based on its creation date
-    async def move_file(self, file_path, destination):
+    async def move_fileOLD(self, file_path, destination):
         from datetime import datetime
         from pathlib import Path
 
@@ -468,7 +487,7 @@ class ProcessMedia:
         os.rename(file_path, dst_path)
         self.logger.info(f"|Move File| Moved {file_path} to {dst_path}")
 
-    def move_media(self, fname, dest_folder):
+    async def move_file(self, fname, dest_folder):
         # os.chmod(fname, 0o777)
         command = (
             "exiftool  -overwrite_original '-Directory<FileModifyDate' '-Directory<CreateDate' -d "
@@ -479,7 +498,9 @@ class ProcessMedia:
         )
         try:
             res = os.system(command)
-            self.logger.info("Media moved: " + str(fname) + " to " + str(dest_folder))
+            self.logger.info(
+                f"|Move File| Moved " + str(fname) + " to " + str(dest_folder)
+            )
         except FileNotFoundError as e:
             logger.error("File not found: " + str(row[1]) + " " + str(e))
 

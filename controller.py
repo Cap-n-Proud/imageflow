@@ -1,4 +1,4 @@
-# python3 controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Photos/001-Process/IN/" -s "/home/paolo/" -fc "/mnt/Photos/001-Process/faceClassifier.pkl"
+# python3 controller.py -iw "/mnt/Photos/001-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/home/paolo/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 
 # pip3 install requests face_recognition pillow scikit-learn scipy matplotlib clarifai_grpc pyexiv2
 # pip install protobuf==3.20. pip3 install numpy==1.23.0
@@ -112,6 +112,8 @@ async def main():
     imagesQueue = Queue()
 
     args, remaining_args = parser.parser.parse_known_args()
+    # sys.path.append(args.configFileDirectory)
+    # from config import fm_config
 
     FORMAT = "[%(asctime)s][%(name)s][%(levelname)s][%(message)s]"
 

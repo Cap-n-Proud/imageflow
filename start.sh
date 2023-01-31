@@ -1,2 +1,2 @@
-screen python3 /app/controller.py -p /mnt/Photos/000-InstantUpload -q /mnt/filemaster_data/media_queue.csv -d 1 -r
+python3 /app/controller.py -iw /mnt/Photos/000-InstantUpload -s /mnt/secrets/imageflow -c /mnt/imageflow/config
 sleep infinity

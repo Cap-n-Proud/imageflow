@@ -31,6 +31,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
   bash \
   bash-completion \
 	bash-doc \
+	cmake \
+	exiftool \
 	&& rm -rf /var/cache/apt/*
 
 WORKDIR /app

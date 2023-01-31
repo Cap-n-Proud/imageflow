@@ -1,4 +1,5 @@
 import argparse
+import sys
 from config import fm_config
 
 parser = argparse.ArgumentParser(description="Example script")
@@ -55,7 +56,7 @@ workflow_group.add_argument(
 
 folders_group.add_argument(
     "-c",
-    "--configFileDirecotry",
+    "--configFileDirectory",
     help=f"Directory containing log file. Default is: {fm_config.CONFIG_PATH}",
     default=fm_config.CONFIG_PATH,
 )
@@ -160,3 +161,5 @@ settings_group.add_argument(
 
 # parse the arguments
 args = parser.parse_args()
+sys.path.append(args.configFileDirectory)
+from config import fm_config
