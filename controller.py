@@ -1,8 +1,6 @@
 # python3 controller.py -iw "/mnt/Photos/001-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/home/paolo/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
-
 # pip3 install requests face_recognition pillow scikit-learn scipy matplotlib clarifai_grpc pyexiv2
-# pip install protobuf==3.20. pip3 install numpy==1.23.0
-# pip3 install --upgrade setuptools
+# pip3 install --upgrade setuptools protobuf
 
 import asyncio
 import os
@@ -69,7 +67,7 @@ async def process_images(imagesQueue, processMedia, logger, args):
         stop_timer.reset()
         stop_timer.start()
         if args.captionImage:
-            await processMedia.caption_image(file_path)
+            await processMedia.caption_image(file_path, True)
         if args.tagImage:
             await processMedia.tag_image(file_path)
         if args.reverseGeotag:

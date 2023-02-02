@@ -1,10 +1,3 @@
-# TODO: Remove references to the config to make this class generic
-# Image destination folder does not work
-# pip3 install numpy==1.23.0
-# ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-# onnx 1.13.0 requires protobuf<4,>=3.20.2, but you have protobuf 3.20.0 which is incompatible.
-# googleapis-common-protos 1.58.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.19.5, but you have protobuf 3.20.0 which is incompatible.
-
 import os
 import random
 import requests
@@ -89,8 +82,7 @@ class ProcessMedia:
         except Exception as e:
             self.logger.error("|OCR Image| ERROR: " + str(e))
 
-    async def caption_image(self, fname):
-        print(str(fm_config.CAPTION_API_URL))
+    async def caption_image(self, fname, writeTags):
         self.logger.info("|Caption Image| Generating caption for: " + str(fname))
         try:
             payload = (
@@ -103,6 +95,7 @@ class ProcessMedia:
             self.logger.debug(
                 "|Caption Image| Image server: " + str(fm_config.CAPTION_API_URL)
             )
+            self.logger.debug("|Caption Image| Caption payload: " + str(payload))
 
             r = requests.post(
                 fm_config.CAPTION_API_URL,
@@ -111,17 +104,17 @@ class ProcessMedia:
             ).content
 
             caption = json.loads(r.decode("utf-8"))
-            self.logger.debug("|Caption Image| Caption payload: " + str(payload))
-            command = (
-                "exiftool -overwrite_original -Caption-Abstract='"
-                + str(caption["output"])
-                + "' '"
-                + str(fname)
-                + "'"
-            )
-            self.logger.info("|Caption Image| Caption generated: " + caption["output"])
+            if writeTags:
+                command = (
+                    "exiftool -overwrite_original -Caption-Abstract='"
+                    + str(caption["output"])
+                    + "' '"
+                    + str(fname)
+                    + "'"
+                )
+                res = os.system(command)
 
-            res = os.system(command)
+            self.logger.info("|Caption Image| Caption generated: " + caption["output"])
         except Exception as e:
             self.logger.warning(
                 "|Caption image| Image captioning unsuccessful: "
@@ -129,6 +122,7 @@ class ProcessMedia:
                 + " "
                 + str(fname)
             )
+        return caption["output"]
 
     async def tag_image(self, fname):
         self.logger.info("|Tag Image| Image tagging started: " + str(fname))
