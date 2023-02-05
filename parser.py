@@ -17,6 +17,12 @@ workflow_group.add_argument(
     default=fm_config.CAPTION_IMAGE,
 )
 workflow_group.add_argument(
+    "-wid",
+    "--idObjImage",
+    help=f"Identify objects in image [True/False]. Default is: {fm_config.ID_OBJ}",
+    default=fm_config.ID_OBJ,
+)
+workflow_group.add_argument(
     "-wm",
     "--moveFile",
     help=f"Move file [True/False]. Default is: {fm_config.MOVE_FILE}",

@@ -12,6 +12,11 @@ from sklearn import svm
 import sys
 import pyexiv2
 
+from datetime import timedelta
+import cv2
+import numpy as np
+from pathlib import Path
+
 # TODO: this should not be impoted here, we should use ther args
 from config import fm_config
 
@@ -39,6 +44,113 @@ class ProcessMedia:
         # print(s.REVERSE_GEO_API)
         pass
 
+    def format_timedelta(self, td):
+        """Utility function to format timedelta objects in a cool way (e.g 00:00:20.05)
+        omitting microseconds and retaining milliseconds"""
+        result = str(td)
+        try:
+            result, ms = result.split(".")
+        except ValueError:
+            return (result + ".00").replace(":", "-")
+        ms = int(ms)
+        ms = round(ms / 1e4)
+        return f"{result}.{ms:02}".replace(":", "-")
+
+    def get_saving_frames_durations(self, cap, saving_fps):
+        """A function that returns the list of durations where to save the frames"""
+        s = []
+        # get the clip duration by dividing number of frames by the number of frames per second
+        clip_duration = cap.get(cv2.CAP_PROP_FRAME_COUNT) / cap.get(cv2.CAP_PROP_FPS)
+        # use np.arange() to make floating-point steps
+        for i in np.arange(0, clip_duration, 1 / saving_fps):
+            s.append(i)
+        return s
+
+    def create_ramdisk(self, directory, size):
+        # Check if the directory exists already
+        if os.path.isdir(directory):
+            print(f"Directory {directory} already exists.")
+            return
+
+        os.system(f"mkdir {directory}")
+
+        # Create the ramdisk
+        os.system(f"sudo mount -t tmpfs -o size={size}M tmpfs {directory}")
+        print(f"Created ramdisk at {directory} with size {size}MB.")
+
+    def clean_ramdisk(self, directory):
+        # Check if the directory exists already
+        if not os.path.isdir(directory):
+            print(f"Directory {directory} does not exists.")
+            return
+
+        # Create the ramdisk
+        os.system(f"sudo rm -r {directory}/*")
+        print(f"Ramdisk content at {directory} cleared")
+
+    def splitVideo(self, video_file, ramDisk, framesPerSecond):
+        filename, _ = os.path.splitext(video_file)
+        # filename += "-opencv"
+        # print(filename)
+        filename = os.path.join(ramDisk, filename)
+        tmpFName = Path(video_file).stem
+        filename = fm_config.RAMDISK_DIR + str(tmpFName)
+        # make a folder by the name of the video file
+        if not os.path.isdir(filename):
+            os.mkdir(filename)
+        # read the video file
+        cap = cv2.VideoCapture(video_file)
+        # get the FPS of the video
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        # if the SAVING_FRAMES_PER_SECOND is above video FPS, then set it to FPS (as maximum)
+        saving_frames_per_second = min(fps, framesPerSecond)
+        # get the list of duration spots to save
+        saving_frames_durations = self.get_saving_frames_durations(
+            cap, saving_frames_per_second
+        )
+        # start the loop
+        count = 0
+        while True:
+            is_read, frame = cap.read()
+            if not is_read:
+                # break out of the loop if there are no frames to read
+                break
+            # get the duration by dividing the frame count by the FPS
+            frame_duration = count / fps
+            try:
+                # get the earliest duration to save
+                closest_duration = saving_frames_durations[0]
+            except IndexError:
+                # the list is empty, all duration frames were saved
+                break
+            if frame_duration >= closest_duration:
+                # if closest duration is less than or equals the frame duration,
+                # then save the frame
+                frame_duration_formatted = self.format_timedelta(
+                    timedelta(seconds=frame_duration)
+                )
+                absPath = os.path.abspath(
+                    os.path.join(filename, f"frame{frame_duration_formatted}.jpg")
+                )
+                print(
+                    "filename saved to",
+                    os.path.abspath(
+                        os.path.join(filename, f"frame{frame_duration_formatted}.jpg")
+                    ),
+                )
+
+                cv2.imwrite(
+                    os.path.join(filename, f"frame{frame_duration_formatted}.jpg"),
+                    frame,
+                )
+                # drop the duration spot from the list, since this duration spot is already saved
+                try:
+                    saving_frames_durations.pop(0)
+                except IndexError:
+                    pass
+            # increment the frame count
+            count += 1
+
     def imgHasGPS(self, fname):
 
         img = pyexiv2.Image(str(fname))
@@ -53,12 +165,79 @@ class ProcessMedia:
 
             return False
 
-    async def ocr_image(self, fname):
+    async def id_obj_image(self, fname, writeTags):
+        import ast
+
+        self.logger.info("|OBJ ID Image| Starting identification: " + str(fname))
+        text = ""
+
+        # try:
+        payload = (
+            '{"input":{"image":"'
+            + str(fm_config.IMAGES_SERVER_URL)
+            + str(fname)
+            + '","confidence":"'
+            + str(fm_config.OBJ_ID__MIN_CONFIDENCE)
+            + '"}}'
+        )
+        self.logger.debug(
+            "|OBJ ID Image| Debug: " + fm_config.OBJ_ID_API_URL,
+            fm_config.OBJ_ID_HEADER,
+        )
+        self.logger.debug("|OBJ ID Image| Payload: " + str(payload))
+        #
+        # response = requests.post(
+        #     fm_config.OBJ_ID_API_URL,
+        #     headers=fm_config.OBJ_ID_HEADER,
+        #     data=payload,
+        # ).content
+        url = fm_config.OBJ_ID_API_URL
+        headers = fm_config.OBJ_ID_HEADER
+        data = "'" + payload + "'"
+        data = payload
+        # print("curl ", url, " ", headers, "-d ", data)
+        response = requests.post(url, headers=headers, data=data)
+        response = response.text
+
+        data = json.loads(response)
+
+        inference = json.loads(data["output"]["inference"].replace("'", '"'))
+        unique_cls = list(set([d["cls"] for d in inference]))
+
+        self.logger.info("|OBJ ID Image| Text: " + str(unique_cls))
+        clsCount = 0
+        tags = ""
+        tagNames = ""
+        if writeTags:
+            for cls in unique_cls:
+                clsCount += 1
+                tagNames = tagNames + str(cls) + " "
+                tags = (
+                    tags + " -keywords-='" + cls + "' " + " -keywords+='" + cls + "' "
+                )
+            command = "exiftool -overwrite_original " + tags + " '" + str(fname) + "'"
+            res = os.system(command)
+            self.logger.info(
+                "|Tag Image| Tags are assigend  " + tagNames + " to " + str(fname)
+            )
+        else:
+            return
+
+        # except Exception as e:
+        #     self.logger.error("|OBJ ID Image| ERROR: " + str(e))
+
+    async def ocr_image(self, fname, writeTags):
         self.logger.debug("|OCR image| Starting OCR: " + str(fname))
         text = ""
 
         try:
-            payload = '{"image":"' + str(fname) + '" ,"confidence": "0.6"}'
+            payload = (
+                '{"image":"'
+                + str(fname)
+                + '" ,"confidence":"'
+                + str(fm_config.OCR_MIN_CONFIDENCE)
+                + '"}'
+            )
             self.logger.debug("|OCR Image| Payload: " + str(payload))
 
             r = requests.post(
@@ -69,18 +248,27 @@ class ProcessMedia:
 
             ocr = json.loads(r.decode("utf-8"))
             self.logger.info("|OCR Image| Text: " + str(ocr["full_text"]))
-
-            command = (
-                "exiftool -overwrite_original -Caption-Abstract='"
-                + str(ocr["full_text"])
-                + "' '"
-                + str(fname)
-                + "'"
-            )
-            res = os.system(command)
+            if writeTags:
+                command = (
+                    "exiftool -overwrite_original -Caption-Abstract='"
+                    + str(ocr["full_text"])
+                    + "' '"
+                    + str(fname)
+                    + "'"
+                )
+                res = os.system(command)
+            else:
+                return str(ocr["full_text"])
 
         except Exception as e:
             self.logger.error("|OCR Image| ERROR: " + str(e))
+
+    async def preProcessVideo(self, fname):
+
+        self.create_ramdisk(fm_config.RAMDISK_DIR, fm_config.RAMDISK_SIZE_MB)
+        self.splitVideo(
+            fname, fm_config.RAMDISK_DIR, fm_config.SAVING_FRAMES_PER_SECOND
+        )
 
     async def caption_image(self, fname, writeTags):
         self.logger.info("|Caption Image| Generating caption for: " + str(fname))
@@ -91,11 +279,10 @@ class ProcessMedia:
                 + str(fname)
                 + '" ,"reward": "clips_grammar"}}'
             )
-            self.logger.debug("|Caption Image| Payload: " + str(payload))
-            self.logger.debug(
+            self.logger.info("|Caption Image| Payload: " + str(payload))
+            self.logger.info(
                 "|Caption Image| Image server: " + str(fm_config.CAPTION_API_URL)
             )
-            self.logger.debug("|Caption Image| Caption payload: " + str(payload))
 
             r = requests.post(
                 fm_config.CAPTION_API_URL,
@@ -104,6 +291,7 @@ class ProcessMedia:
             ).content
 
             caption = json.loads(r.decode("utf-8"))
+            self.logger.info("|Caption Image| Caption generated: " + caption["output"])
             if writeTags:
                 command = (
                     "exiftool -overwrite_original -Caption-Abstract='"
@@ -113,8 +301,9 @@ class ProcessMedia:
                     + "'"
                 )
                 res = os.system(command)
+            else:
+                return str(caption["output"])
 
-            self.logger.info("|Caption Image| Caption generated: " + caption["output"])
         except Exception as e:
             self.logger.warning(
                 "|Caption image| Image captioning unsuccessful: "
@@ -122,7 +311,6 @@ class ProcessMedia:
                 + " "
                 + str(fname)
             )
-        return caption["output"]
 
     async def tag_image(self, fname):
         self.logger.info("|Tag Image| Image tagging started: " + str(fname))
@@ -280,7 +468,7 @@ class ProcessMedia:
             pil_image = Image.fromarray(face_image)
             pil_image.show()
 
-    async def classify_faces(self, fname):
+    async def classify_faces(self, fname, writeTags):
         encodings = []
         names = []
 
@@ -366,7 +554,7 @@ class ProcessMedia:
                 #     # UNKNOWN_FACE_FOLDER:
                 #     1 = 1
                 #     # Code here to save the unknown face to a directory
-
+            if writeTags:
                 faces = (
                     faces
                     + ' -keywords-="no people" -keywords-='
@@ -374,18 +562,27 @@ class ProcessMedia:
                     + " -keywords+="
                     + str(name[0])
                 )
-            command = "exiftool -overwrite_original " + faces + " '" + str(fname) + "'"
-            res = os.system(command)
-            self.logger.info(
-                "|Classify Faces| " + str(names) + " added as keywords to " + str(fname)
-            )
+                command = (
+                    "exiftool -overwrite_original " + faces + " '" + str(fname) + "'"
+                )
+                res = os.system(command)
+                self.logger.info(
+                    "|Classify Faces| "
+                    + str(names)
+                    + " added as keywords to "
+                    + str(fname)
+                )
+            else:
+                return str(names)
         else:
-            command = (
-                "exiftool -overwrite_original -keywords-='no_people' -keywords+='no_people' '"
-                + str(fname)
-                + "'"
-            )
-            res = os.system(command)
+            if writeTags:
+
+                command = (
+                    "exiftool -overwrite_original -keywords-='no_people' -keywords+='no_people' '"
+                    + str(fname)
+                    + "'"
+                )
+                res = os.system(command)
 
     async def copy_tags_to_IPTC(self, fname):
         try:

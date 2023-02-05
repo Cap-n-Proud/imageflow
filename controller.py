@@ -1,4 +1,4 @@
-# python3 controller.py -iw "/mnt/Photos/001-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/home/paolo/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
+# python3 controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/home/paolo/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 # pip3 install requests face_recognition pillow scikit-learn scipy matplotlib clarifai_grpc pyexiv2
 # pip3 install --upgrade setuptools protobuf
 
@@ -19,6 +19,8 @@ import parser
 
 import ProcessMedia
 import StopTimer
+
+from config import fm_config
 
 
 def init(args):
@@ -56,7 +58,7 @@ async def reverse_geo(file_path, args):
 
 
 # function that processes files in the imagesQueue
-async def process_images(imagesQueue, processMedia, logger, args):
+async def process_media(imagesQueue, processMedia, logger, args):
     stop_timer = StopTimer.StopTimer()
     while True:
         file = await imagesQueue.get()
@@ -66,20 +68,42 @@ async def process_images(imagesQueue, processMedia, logger, args):
         logger.info("Processing: " + str(file_path))
         stop_timer.reset()
         stop_timer.start()
-        if args.captionImage:
-            await processMedia.caption_image(file_path, True)
-        if args.tagImage:
-            await processMedia.tag_image(file_path)
-        if args.reverseGeotag:
-            await processMedia.reverse_geotag(file_path)
-        if args.classifyFaces:
-            await processMedia.classify_faces(file_path)
-        if args.ocrImage:
-            await processMedia.ocr_image(file_path)
-        if args.copyTagsToIPTC:
-            await processMedia.copy_tags_to_IPTC(file_path)
-        if args.moveFile:
-            await processMedia.move_file(file_path, args.imageDestinationDir)
+        if file.lower().endswith(args.imageExtensions):
+            if args.captionImage:
+                await processMedia.caption_image(file_path, True)
+            if args.tagImage:
+                await processMedia.tag_image(file_path)
+            if args.reverseGeotag:
+                await processMedia.reverse_geotag(file_path)
+            if args.classifyFaces:
+                await processMedia.classify_faces(file_path, True)
+            if args.ocrImage:
+                await processMedia.ocr_image(file_path, True)
+            if args.copyTagsToIPTC:
+                await processMedia.copy_tags_to_IPTC(file_path)
+            if args.idObjImage:
+                await processMedia.id_obj_image(file_path, True)
+            if args.moveFile:
+                await processMedia.move_file(file_path, args.imageDestinationDir)
+
+        if file.lower().endswith(args.videoExtensions):
+            await processMedia.preProcessVideo(file_path)
+            tmpFName = Path(file_path).stem
+            tmpPath = fm_config.RAMDISK_DIR + str(tmpFName)
+            print("tmpPath", tmpPath)
+
+            caption = ""
+            for file in os.listdir(tmpPath):
+                file = os.path.abspath(os.path.join(Path(tmpPath), file))
+                # print("fileincontroller", file)
+                # exiftool -Description="lklklllklkl" -Title="title" -LongDescription="transcript" -Keywords="lklk,lklkl,aaa" 202301214088.mov
+
+                print(str(await processMedia.caption_image(file, False)))
+                print(str(await processMedia.classify_faces(file, False)))
+                print(str(await processMedia.ocr_image(file_path, False)))
+                # caption = caption + processMedia.caption_image(file, False)
+
+                # processMedia.clean_ramdisk(fm_config.RAMDISK_DIR)
 
         # await processMedia.info()
         imagesQueue.task_done()
@@ -97,8 +121,8 @@ async def watch_folder(imagesQueue, args):
         for file in os.listdir(args.imagesWatchDirectory):
             if (
                 file.lower().endswith(args.imageExtensions)
-                and file not in processed_files
-            ):
+                or file.lower().endswith(args.videoExtensions)
+            ) and file not in processed_files:
                 imagesQueue.put_nowait(file)
                 processed_files.add(file)
                 # logger.debug("Added to queue:" + str(file))
@@ -139,7 +163,7 @@ async def main():
     task1 = asyncio.create_task(watch_folder(imagesQueue, args))
     # start multiple tasks that process files in the imagesQueue
     task2 = [
-        asyncio.create_task(process_images(imagesQueue, processMedia, logger, args))
+        asyncio.create_task(process_media(imagesQueue, processMedia, logger, args))
         for _ in range(5)
     ]
 

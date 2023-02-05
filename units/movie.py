@@ -32,24 +32,34 @@ def get_saving_frames_durations(cap, saving_fps):
     return s
 
 
-import os
-
-
 def create_ramdisk(directory, size):
     # Check if the directory exists already
     if os.path.isdir(directory):
         print(f"Directory {directory} already exists.")
         return
 
+    os.system(f"mkdir {directory}")
+
     # Create the ramdisk
     os.system(f"sudo mount -t tmpfs -o size={size}M tmpfs {directory}")
     print(f"Created ramdisk at {directory} with size {size}MB.")
 
 
-def main(video_file, ramDisk):
+def clean_ramdisk(directory):
+    # Check if the directory exists already
+    if not os.path.isdir(directory):
+        print(f"Directory {directory} does not exists.")
+        return
+
+    # Create the ramdisk
+    os.system(f"sudo rm -r {directory}/*")
+    print(f"Ramdisk content at {directory} cleared")
+
+
+def splitVideo(video_file, ramDisk, framesPerSecond):
     filename, _ = os.path.splitext(video_file)
-    filename += "-opencv"
-    print(filename)
+    # filename += "-opencv"
+    # print(filename)
     filename = os.path.join(ramDisk, filename)
     # make a folder by the name of the video file
     if not os.path.isdir(filename):
@@ -59,7 +69,7 @@ def main(video_file, ramDisk):
     # get the FPS of the video
     fps = cap.get(cv2.CAP_PROP_FPS)
     # if the SAVING_FRAMES_PER_SECOND is above video FPS, then set it to FPS (as maximum)
-    saving_frames_per_second = min(fps, SAVING_FRAMES_PER_SECOND)
+    saving_frames_per_second = min(fps, framesPerSecond)
     # get the list of duration spots to save
     saving_frames_durations = get_saving_frames_durations(cap, saving_frames_per_second)
     # start the loop
@@ -97,4 +107,4 @@ def main(video_file, ramDisk):
 
 
 create_ramdisk("./temp/", 1000)
-main("202301284121.mp4", "./temp/")
+splitVideo("202301284121.mp4", "./temp/", SAVING_FRAMES_PER_SECOND)

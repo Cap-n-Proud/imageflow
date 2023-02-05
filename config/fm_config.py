@@ -10,7 +10,7 @@
 IMAGES_WATCH_DIRECTORY = "/mnt/Photos/000-InstantUpload/"
 
 # Delay Between Watch Cycles In Seconds
-WATCH_DELAY = 15
+WATCH_DELAY = 3
 
 # Check The WATCH_DIRECTORY and its children
 # WATCH_RECURSIVELY = True
@@ -84,8 +84,17 @@ REVERSE_GEOTAG = True
 CLASSIFY_FACES = True
 OCR_IMAGE = True
 COPY_TAGS_TO_IPTC = True
+ID_OBJ = True
 MOVE_FILE = True
 
+CAPTION_IMAGE = False
+TAG_IMAGE = False
+REVERSE_GEOTAG = False
+CLASSIFY_FACES = False
+OCR_IMAGE = False
+COPY_TAGS_TO_IPTC = False
+ID_OBJ = True
+MOVE_FILE = False
 # --------------------------- Image processor config ---------------------------
 FACE_TRAINING_DIR = "/mnt/Photos/005-PhotoBook/000-knownfaces/"
 REVERSE_GEO_URL = "https://api.opencagedata.com/geocode/v1/json?q="
@@ -99,11 +108,22 @@ JSON_FOLDER = "/mnt/imageflow/json/"
 CAPTION_API_URL = "http://192.168.1.163:5000/predictions"
 CAPTION_API_URL = "http://192.168.1.121:9111/predictions"
 # NOTE: mount on the server must be the same as the photo foler e.g.: IMAGES_SERVER_URL + "/mnt/Photos"
-IMAGES_SERVER_URL = "http://192.168.1.163:9099"
+IMAGES_SERVER_URL = "http://192.168.1.121:9999"
 IMAGE_CAPTION_HEADER = {"content-type": "application/json"}
+
+# --------------------------- Image OCR --------------------------
 OCR_CAPTION_HEADER = {"content-type": "application/json"}
 OCR_API_URL = "http://192.168.1.121:9011/predict"
+OCR_MIN_CONFIDENCE = 0.6
 
+# --------------------------- Image OBJ ID --------------------------
+OBJ_ID_HEADER = {"content-type": "application/json"}
+OBJ_ID_API_URL = "http://192.168.1.121:9998/predictions"
+OBJ_ID__MIN_CONFIDENCE = 0.6
+
+RAMDISK_DIR = "/mnt/Photos/001-Process/test/"
+RAMDISK_SIZE_MB = 512
+SAVING_FRAMES_PER_SECOND = 1 / 5
 # --------------------------- Image processor OCR config ---------------------------
 DET_MODEL_DIR = (
     "/mnt/Software/200-Apps/imageFlow/models/whl/det/en/en_PP-OCRv3_det_infer/"
