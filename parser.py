@@ -132,6 +132,12 @@ extensions_group.add_argument(
     default=fm_config.VIDEO_EXTENSIONS,
 )
 extensions_group.add_argument(
+    "-ae",
+    "--audioExtensions",
+    help=f"Extensions of files to watch ({fm_config.AUDIO_EXTENSIONS})",
+    default=fm_config.AUDIO_EXTENSIONS,
+)
+extensions_group.add_argument(
     "-de",
     "--documentsExtensions",
     help=f"Extensions of files to watch ({fm_config.DOC_EXTENSIONS})",
@@ -150,6 +156,13 @@ settings_group.add_argument(
     help=f"Watch delay ({fm_config.WATCH_DELAY})",
     default=fm_config.WATCH_DELAY,
     type=int,
+)
+settings_group.add_argument(
+    "-r",
+    "--watchRecursively",
+    help=f"Watch delay ({fm_config.WATCH_RECURSIVELY})",
+    default=fm_config.WATCH_RECURSIVELY,
+    type=bool,
 )
 
 settings_group.add_argument(

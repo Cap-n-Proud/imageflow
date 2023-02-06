@@ -2,6 +2,10 @@
 # pip3 install requests face_recognition pillow scikit-learn scipy matplotlib clarifai_grpc pyexiv2
 # pip3 install --upgrade setuptools protobuf
 
+# NUC
+# python3 controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Apps_Config/imageflow/" -s "/home/nuc/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" -r true
+
+
 import asyncio
 import os
 import datetime
@@ -57,6 +61,28 @@ async def reverse_geo(file_path, args):
     pass
 
 
+def extract_unique_keywords(lst):
+    result = []
+    for item in lst:
+        if item == "None":
+            continue
+        sub_lst = eval(item)
+        for keyword in sub_lst:
+            if keyword not in result:
+                result.append(keyword)
+    return result
+
+
+def add_to_list_if_not_exist(lst, items):
+    items = items.replace("[", "").replace("]", "").replace("'", "")
+    items = items.split(",")
+    for item in items:
+        # print("item", item)
+        if item not in lst:
+            lst.append(item)
+    return lst
+
+
 # function that processes files in the imagesQueue
 async def process_media(imagesQueue, processMedia, logger, args):
     stop_timer = StopTimer.StopTimer()
@@ -86,24 +112,59 @@ async def process_media(imagesQueue, processMedia, logger, args):
             if args.moveFile:
                 await processMedia.move_file(file_path, args.imageDestinationDir)
 
+        # VIDEO WORKFLOW
         if file.lower().endswith(args.videoExtensions):
-            await processMedia.preProcessVideo(file_path)
+            # BELOW DISABLED FOR TESTING
+            # await processMedia.preProcessVideo(file_path)
             tmpFName = Path(file_path).stem
             tmpPath = fm_config.RAMDISK_DIR + str(tmpFName)
-            print("tmpPath", tmpPath)
+            logger.info("Temp path:" + str(tmpPath))
 
-            caption = ""
+            caption = []
+            faces = []
+            ocr = []
+            objects = []
+
             for file in os.listdir(tmpPath):
                 file = os.path.abspath(os.path.join(Path(tmpPath), file))
                 # print("fileincontroller", file)
                 # exiftool -Description="lklklllklkl" -Title="title" -LongDescription="transcript" -Keywords="lklk,lklkl,aaa" 202301214088.mov
+                if file.lower().endswith(args.imageExtensions):
+                    c = str(await processMedia.caption_image(file, False))
+                    caption.append(c)
+                    f = str(await processMedia.classify_faces(file, False))
+                    faces = add_to_list_if_not_exist(faces, f)
 
-                print(str(await processMedia.caption_image(file, False)))
-                print(str(await processMedia.classify_faces(file, False)))
-                print(str(await processMedia.ocr_image(file_path, False)))
-                # caption = caption + processMedia.caption_image(file, False)
+                    o = str(await processMedia.ocr_image(file, False))
+                    ocr.append(o)
+                    ob = str(await processMedia.id_obj_image(file, False))
+                    objects = add_to_list_if_not_exist(objects, ob)
+                if file.lower().endswith(args.audioExtensions):
+                    t = str(await processMedia.transcribe(file, False))
+                    pass
+                    # caption = caption + processMedia.caption_image(file, False)
+            # processMedia.clean_ramdisk(fm_config.RAMDISK_DIR)
+            print("captions --------------")
 
-                # processMedia.clean_ramdisk(fm_config.RAMDISK_DIR)
+            # for c in caption:
+            #     print(c)
+            print("faces --------------")
+            print(faces)
+            # print(extract_unique_keywords(faces))
+
+            # print("ocr --------------")
+            # print(extract_unique_keywords(ocr))
+            #
+            print("objects --------------")
+            print(objects)
+            # print(extract_unique_keywords(objects))
+
+            # print result
+
+            # for ob in objects:
+            #     print(ob)
+            # print(t)
+            # processMedia.clean_ramdisk(fm_config.RAMDISK_DIR)
 
         # await processMedia.info()
         imagesQueue.task_done()
@@ -113,12 +174,30 @@ async def process_media(imagesQueue, processMedia, logger, args):
         )
 
 
+async def recursive_listdir(path, recursive=False):
+    if not recursive:
+        return os.listdir(path)
+    else:
+        result = []
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                result.append(os.path.join(root, name))
+        return result
+
+
+#
+# files = list_files("/path/to/directory", recursive=True)
+# print(files)
+
 # function that watches a folder for new files
 async def watch_folder(imagesQueue, args):
     processed_files = set()
 
     while True:
-        for file in os.listdir(args.imagesWatchDirectory):
+        # for file in os.listdir(args.imagesWatchDirectory):
+        for file in await recursive_listdir(
+            args.imagesWatchDirectory, recursive=args.watchRecursively
+        ):
             if (
                 file.lower().endswith(args.imageExtensions)
                 or file.lower().endswith(args.videoExtensions)

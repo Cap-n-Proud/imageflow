@@ -29,7 +29,7 @@ from scenedetect.detectors import ContentDetector, AdaptiveDetector
 from scenedetect.video_splitter import split_video_ffmpeg
 from scenedetect.scene_manager import save_images
 
-ProcessMedia_version = "3.0"
+ProcessMedia_version = "2.2"
 
 
 class ProcessMedia:
@@ -48,6 +48,28 @@ class ProcessMedia:
 
         # print(s.REVERSE_GEO_API)
         pass
+
+    def format_timedelta(self, td):
+        """Utility function to format timedelta objects in a cool way (e.g 00:00:20.05)
+        omitting microseconds and retaining milliseconds"""
+        result = str(td)
+        try:
+            result, ms = result.split(".")
+        except ValueError:
+            return (result + ".00").replace(":", "-")
+        ms = int(ms)
+        ms = round(ms / 1e4)
+        return f"{result}.{ms:02}".replace(":", "-")
+
+    def get_saving_frames_durations(self, cap, saving_fps):
+        """A function that returns the list of durations where to save the frames"""
+        s = []
+        # get the clip duration by dividing number of frames by the number of frames per second
+        clip_duration = cap.get(cv2.CAP_PROP_FRAME_COUNT) / cap.get(cv2.CAP_PROP_FPS)
+        # use np.arange() to make floating-point steps
+        for i in np.arange(0, clip_duration, 1 / saving_fps):
+            s.append(i)
+        return s
 
     def create_ramdisk(self, directory, size):
         # Check if the directory exists already
@@ -73,16 +95,83 @@ class ProcessMedia:
         shutil.rmtree(directory)
         print(f"Ramdisk content at {directory} cleared")
 
+    def splitVideo(self, video_file, ramDisk, framesPerSecond):
+        filename, _ = os.path.splitext(video_file)
+        # filename += "-opencv"
+        # print(filename)
+        filename = os.path.join(ramDisk, filename)
+        tmpFName = Path(video_file).stem
+        filename = fm_config.RAMDISK_DIR + str(tmpFName)
+        # make a folder by the name of the video file
+        if not os.path.isdir(filename):
+            os.mkdir(filename)
+        # read the video file
+        cap = cv2.VideoCapture(video_file)
+        # get the FPS of the video
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        print("FPS", fps)
+        # if the SAVING_FRAMES_PER_SECOND is above video FPS, then set it to FPS (as maximum)
+        saving_frames_per_second = min(fps, framesPerSecond)
+        # get the list of duration spots to save
+        saving_frames_durations = self.get_saving_frames_durations(
+            cap, saving_frames_per_second
+        )
+        # start the loop
+        count = 0
+        while True:
+            is_read, frame = cap.read()
+            if not is_read:
+                # break out of the loop if there are no frames to read
+                break
+            # get the duration by dividing the frame count by the FPS
+            frame_duration = count / fps
+            try:
+                # get the earliest duration to save
+                closest_duration = saving_frames_durations[0]
+            except IndexError:
+                # the list is empty, all duration frames were saved
+                break
+            if frame_duration >= closest_duration:
+                # if closest duration is less than or equals the frame duration,
+                # then save the frame
+                frame_duration_formatted = self.format_timedelta(
+                    timedelta(seconds=frame_duration)
+                )
+                absPath = os.path.abspath(
+                    os.path.join(filename, f"frame{frame_duration_formatted}.jpg")
+                )
+                self.logger.info(
+                    "|Split Video| Frame saved to: "
+                    + str(
+                        os.path.abspath(
+                            os.path.join(
+                                filename, f"frame{frame_duration_formatted}.jpg"
+                            )
+                        )
+                    )
+                )
+
+                cv2.imwrite(
+                    os.path.join(filename, f"frame{frame_duration_formatted}.jpg"),
+                    frame,
+                )
+                # drop the duration spot from the list, since this duration spot is already saved
+                try:
+                    saving_frames_durations.pop(0)
+                except IndexError:
+                    pass
+            # increment the frame count
+            count += 1
+
     def split_video_into_scenes(self, video_path, output_dir=None, threshold=1):
         # Open our video, create a scene manager, and add a detector.
-        print(video_path)
         video = open_video(video_path)
         scene_manager = SceneManager()
         scene_manager.add_detector(AdaptiveDetector(adaptive_threshold=threshold))
         # scene_manager.add_detector(AdaptiveDetector(threshold=threshold))
         scene_manager.detect_scenes(video, show_progress=True)
         scene_list = scene_manager.get_scene_list()
-        filename, file_extension = os.path.splitext(os.path.basename(video_path))
+        filename, file_extension = os.path.splitext(os.path.basename(fname))
 
         output_dir = output_dir + "/" + filename
         print("FILEMANE", output_dir)
@@ -93,7 +182,7 @@ class ProcessMedia:
     def extract_audio(self, fname, folder):
         filename, file_extension = os.path.splitext(os.path.basename(fname))
         print(os.path.join(folder, str(filename) + "/audio.aac"))
-        command = "ffmpeg -y -i {} -vn -acodec copy {}".format(
+        command = "ffmpeg -i {} -vn -acodec copy {}".format(
             fname, os.path.join(folder, str(filename) + "/audio.aac")
         )
         subprocess.call(command, shell=True)
@@ -115,7 +204,7 @@ class ProcessMedia:
     async def id_obj_image(self, fname, writeTags):
         import ast
 
-        self.logger.debug("|OBJ ID Image| Starting identification: " + str(fname))
+        self.logger.info("|OBJ ID Image| Starting identification: " + str(fname))
         text = ""
 
         try:
@@ -134,7 +223,12 @@ class ProcessMedia:
                 fm_config.OBJ_ID_HEADER,
             )
             self.logger.debug("|OBJ ID Image| Payload: " + str(payload))
-
+            #
+            # response = requests.post(
+            #     fm_config.OBJ_ID_API_URL,
+            #     headers=fm_config.OBJ_ID_HEADER,
+            #     data=payload,
+            # ).content
             url = fm_config.OBJ_ID_API_URL
             headers = fm_config.OBJ_ID_HEADER
             data = "'" + payload + "'"
@@ -225,68 +319,7 @@ class ProcessMedia:
             fname, threshold=1, output_dir=fm_config.RAMDISK_DIR
         )
 
-        self.extract_audio(fname, fm_config.RAMDISK_DIR)
-
-    async def transcribe(self, fname, writeTags):
-        # -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/audio.aac","model": "large-v2"}}'
-        self.logger.info("|Transcribe| Generating transcription for: " + str(fname))
-
-        # try:
-        payload = (
-            '{"input": {"audio":"'
-            + str(fm_config.IMAGES_SERVER_URL)
-            + str(fname)
-            + '" ,"model":"'
-            + str(fm_config.TRANSCRIBE__MODEL_NAME)
-            + '"}}'
-        )
-        self.logger.info("|Transcribe| Payload: " + str(payload))
-        self.logger.debug(
-            "|Transcribe| Transcribe server: " + str(fm_config.TRANSCRIBE_API_URL)
-        )
-
-        r = requests.post(
-            fm_config.TRANSCRIBE_API_URL,
-            headers=fm_config.TRANSCRIBE_HEADER,
-            data=payload,
-        ).text
-
-        # url = fm_config.OBJ_ID_API_URL
-        # headers = fm_config.OBJ_ID_HEADER
-        # data = "'" + payload + "'"
-        # data = payload
-        # # print("curl ", url, " ", headers, "-d ", data)
-        # response = requests.post(url, headers=headers, data=data)
-        # response = response.text
-        self.logger.debug("|Transcribe| Transcribe result: " + str(r))
-
-        transcription = json.loads(r)
-        # transcription = json.loads(r.decode("utf-8"))
-        self.logger.info(
-            "|Transcribe| Caption generated for file "
-            + str(fname)
-            + ": "
-            + transcription["output"]["transcription"][:100]
-        )
-        if writeTags:
-            command = (
-                "exiftool -overwrite_original -Caption-Abstract='"
-                + str(transcription["output"]["transcription"])
-                + "' '"
-                + str(fname)
-                + "'"
-            )
-            res = os.system(command)
-        else:
-            return str(transcription["output"]["transcription"])
-
-        # except Exception as e:
-        #     self.logger.error(
-        #         "|Transcription| Transcription unsuccessful: "
-        #         + str(e)
-        #         + " "
-        #         + str(fname)
-        #     )
+        self.extract_audio(fname, fm_config.RAMDISK_DIR, fm_config.RAMDISK_DIR)
 
     async def caption_image(self, fname, writeTags):
         self.logger.debug("|Caption Image| Generating caption for: " + str(fname))
@@ -310,10 +343,10 @@ class ProcessMedia:
 
             caption = json.loads(r.decode("utf-8"))
             self.logger.info(
-                "|Caption Image| Caption generated for file "
-                + str(fname)
-                + ": "
+                "|Caption Image| Caption generated: "
                 + caption["output"]
+                + " for file "
+                + str(fname)
             )
             if writeTags:
                 command = (
@@ -541,6 +574,7 @@ class ProcessMedia:
                             encodings.append(face_enc)
                             names.append(person)
                         else:
+
                             command = (
                                 "rm "
                                 + fm_config.FACE_CLASSIFIER_TRAIN_DIR
@@ -566,18 +600,16 @@ class ProcessMedia:
                 )
             # Predict all the faces in the test image using the trained classifier
             faces = ""
-            names = []
+            names = ""
             command = ""
             for i in range(no):
                 image_enc = face_recognition.face_encodings(image)[i]
                 name = clf.predict([image_enc])
-                # names = names + " " + str(name)
-                if name[0] not in names:
-                    names.append(name[0])
-                # print("FACE:", name[0])
-                # print("NAMES:", names)
-                # print("NAME:", name)
-
+                names = names + " " + str(name)
+                # if name == fm_config.UNKNOWN_FACE_NAME:
+                #     # UNKNOWN_FACE_FOLDER:
+                #     1 = 1
+                #     # Code here to save the unknown face to a directory
             if writeTags:
                 faces = (
                     faces
@@ -600,14 +632,13 @@ class ProcessMedia:
                 return str(names)
         else:
             if writeTags:
+
                 command = (
                     "exiftool -overwrite_original -keywords-='no_people' -keywords+='no_people' '"
                     + str(fname)
                     + "'"
                 )
                 res = os.system(command)
-            else:
-                return str("no_people")
 
     async def copy_tags_to_IPTC(self, fname):
         try:
