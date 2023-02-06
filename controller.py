@@ -75,7 +75,7 @@ def extract_unique_keywords(lst):
 
 def add_to_list_if_not_exist(lst, items):
     items = items.replace("[", "").replace("]", "").replace("'", "")
-    items = items.split(",")
+    items = items.strip().split(",")
     for item in items:
         # print("item", item)
         if item not in lst:
