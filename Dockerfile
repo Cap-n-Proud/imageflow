@@ -25,13 +25,16 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 	screen \
 	python3 \
 	python3-pip \
-  sshfs \
-  openssl \
-  curl \
-  bash \
-  bash-completion \
+  	sshfs \
+  	openssl \
+  	curl \
+  	bash \
+  	bash-completion \
 	bash-doc \
 	cmake \
+	ffmpeg \
+	libsm6 \
+	libxext6 \
 	exiftool \
 	&& rm -rf /var/cache/apt/*
 
