@@ -1,3 +1,6 @@
+# Docker
+# python3 controller.py -iw "/mnt/VDev/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/VDev/Apps_Config/imageflow/" -s "/mnt/VDev/No_Share/secrets/imageflow/" -fc "/mnt/VDev/Apps_Config/imageflow/faceClassifier.pkl"
+
 # python3 controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/home/paolo/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 # pip3 install requests face_recognition pillow scikit-learn scipy matplotlib clarifai_grpc pyexiv2
 # pip3 install --upgrade setuptools protobuf
@@ -75,7 +78,7 @@ def extract_unique_keywords(lst):
 
 def add_to_list_if_not_exist(lst, items):
     items = items.replace("[", "").replace("]", "").replace("'", "")
-    items = items.strip().split(",")
+    items = items.strip().split(", ")
     for item in items:
         # print("item", item)
         if item not in lst:

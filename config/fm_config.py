@@ -88,13 +88,6 @@ COPY_TAGS_TO_IPTC = True
 ID_OBJ = True
 MOVE_FILE = True
 
-CAPTION_IMAGE = False
-TAG_IMAGE = False
-REVERSE_GEOTAG = False
-CLASSIFY_FACES = False
-OCR_IMAGE = False
-COPY_TAGS_TO_IPTC = False
-ID_OBJ = False
 MOVE_FILE = False
 
 # --------------------------- Image processor config ---------------------------

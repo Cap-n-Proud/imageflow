@@ -289,7 +289,7 @@ class ProcessMedia:
         #     )
 
     async def caption_image(self, fname, writeTags):
-        self.logger.debug("|Caption Image| Generating caption for: " + str(fname))
+        self.logger.info("|Caption Image| Generating caption for: " + str(fname))
         try:
             payload = (
                 '{"input": {"image":"'
@@ -328,7 +328,7 @@ class ProcessMedia:
                 return str(caption["output"])
 
         except Exception as e:
-            self.logger.warning(
+            self.logger.error(
                 "|Caption image| Image captioning unsuccessful: "
                 + str(e)
                 + " "
