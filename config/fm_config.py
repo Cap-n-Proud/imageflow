@@ -84,9 +84,8 @@ COPY_TAGS_TO_IPTC = True
 ID_OBJ = True
 MOVE_FILE = True
 
-
 CAPTION_IMAGE = False
-TAG_IMAGE = True
+TAG_IMAGE = False
 REVERSE_GEOTAG = False
 CLASSIFY_FACES = False
 OCR_IMAGE = False
@@ -147,10 +146,11 @@ TRANSCRIBE_MIN_CONFIDENCE = 0.5
 # curl http://192.168.1.121:9996/predictions -X POST -H "Content-Type: application/json"  -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/output-audio.aac","model": "large-v2"}}' > pizza2.json
 
 
-RAMDISK_DIR = "/mnt/Photos/001-Process/test/"
+RAMDISK_DIR = "/mnt/Photos/001-Process/tmp/"
+# RAMDISK_DIR = "/tmp/"
 RAMDISK_SIZE_MB = 512
 SAVING_FRAMES_PER_SECOND = 1 / 5
-
+SCENE_DETECT_THRESHOLD = 1
 
 # --------------------------- Solr config ---------------------------
 SOLR_POST_EXE = "/root/solr-8.11.1/bin/post"

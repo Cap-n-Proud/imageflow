@@ -12,6 +12,7 @@ from sklearn import svm
 import sys
 import pyexiv2
 import base64
+from pathlib import Path
 
 from datetime import timedelta
 import cv2
@@ -50,10 +51,30 @@ class ProcessMedia:
         # print(s.REVERSE_GEO_API)
         pass
 
+    def createTempDirectory(self, fname):
+
+        directory = os.path.splitext(os.path.basename(fname))[0]
+        # Check if the directory exists already
+        if os.path.isdir(directory):
+            self.logger.debug(f"Directory {directory} already exists.")
+            return
+        os.system(f"mkdir {fm_config.RAMDISK_DIR}{directory}")
+        self.logger.debug(
+            f"Directory created at '{fm_config.RAMDISK_DIR}{directory}'")
+
+    def removeTempDirectory(self, fname):
+        directory = os.path.splitext(fname)[0]
+        # Check if the directory exists
+        if not os.path.isdir(directory):
+            self.logger.debug(f"Directory {directory} does not exists.")
+            return
+        os.system(f"rm -r {fm_config.RAMDISK_DIR}{directory}")
+        self.logger.info(f"Directory removed: {directory}.")
+
     def create_ramdisk(self, directory, size):
         # Check if the directory exists already
         if os.path.isdir(directory):
-            print(f"Directory {directory} already exists.")
+            self.logger.debug(f"Directory {directory} already exists.")
             return
 
         os.system(f"mkdir {directory}")
@@ -76,27 +97,30 @@ class ProcessMedia:
 
     def split_video_into_scenes(self, video_path, output_dir=None, threshold=1):
         # Open our video, create a scene manager, and add a detector.
-        print(video_path)
+        self.logger.debug(
+            f"Finding scenes for {video_path}, threshold {threshold}")
         video = open_video(video_path)
         scene_manager = SceneManager()
-        scene_manager.add_detector(AdaptiveDetector(adaptive_threshold=threshold))
+        scene_manager.add_detector(
+            AdaptiveDetector(adaptive_threshold=threshold))
         # scene_manager.add_detector(AdaptiveDetector(threshold=threshold))
         scene_manager.detect_scenes(video, show_progress=True)
         scene_list = scene_manager.get_scene_list()
-        filename, file_extension = os.path.splitext(os.path.basename(video_path))
+        filename, file_extension = os.path.splitext(
+            os.path.basename(video_path))
+        self.logger.debug(f"Scenes {len(scene_list)}.")
 
         output_dir = output_dir + "/" + filename
-        print("FILEMANE", output_dir)
+        # print("FILEMANE", output_dir)
         save_images(
             scene_list=scene_list, video=video, output_dir=output_dir, num_images=1
         )
 
-    def extract_audio(self, fname, folder):
+    def extract_audio(self, fname, tmp_folder):
         filename, file_extension = os.path.splitext(os.path.basename(fname))
-        print(os.path.join(folder, str(filename) + "/audio.aac"))
-        command = "ffmpeg -y -i {} -vn -acodec copy {}".format(
-            fname, os.path.join(folder, str(filename) + "/audio.aac")
-        )
+
+        command = f"ffmpeg -y -i '{fname}' -vn -acodec copy '{tmp_folder}/audio.aac'"
+        print("-----------------", command)
         subprocess.call(command, shell=True)
 
     def imgHasGPS(self, fname):
@@ -159,87 +183,81 @@ class ProcessMedia:
         with open(path, "rb") as f:
             return f.read()
 
-    async def resize_with_aspect_ratio(
-        self, file_path, max_width=None, max_height=None, format=None
-    ):
-        # Load the image from the file using async I/O
-        file_bytes = await self.read_file(file_path)
-        max_width = int(max_width)
-        # max_height = int(max_height)
+    async def write_keywords_metadata_to_video_file(self, video_file_path, keywords, description):
+        import pathlib
+        """
+        Writes keywords metadata to a QuickTime video file, removing duplicates.
 
-        # Decode the file contents from base64 and into a NumPy array
-        nparr = np.frombuffer(base64.b64decode(file_bytes), np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        Parameters:
+        video_file_path (str): The path to the video file.
+        keywords (list): A list of keywords to write as metadata.
 
-        # Check if the image is None
-        if image is None:
-            self.logger.warning("Failed to decode image")
-        size_bytes = len(image)
-        # Convert the size to megabytes
-        size_mb = size_bytes / (1024 ** 2)
+        Returns:
+        None
+        """
 
-        self.logger.debug(f"The size of the image is {size_mb:.2f} megabytes")
+        # First, we need to get the current metadata for the file using ffprobe
+        ffprobe_cmd = f'ffprobe -v quiet -print_format json -show_format -show_streams "{video_file_path}"'
+        ffprobe_output = subprocess.check_output(
+            ffprobe_cmd, shell=True).decode('utf-8')
+        metadata = json.loads(ffprobe_output)['format']['tags']
 
-        # Get the original width and height of the image
-        orig_height, orig_width = image.shape[:2]
+        # Get the existing keywords from the metadata and remove duplicates
+        existing_keywords = set(metadata.get('keywords', '').split(','))
+        keywords = list(set(keywords) - existing_keywords)
 
-        # Compute the aspect ratio of the original image
-        aspect_ratio = orig_width / orig_height
+        # If there are no new keywords to add, we don't need to do anything
+        # if not keywords:
+        #     return
 
-        # Compute the target width and height based on the maximum dimensions
-        if max_width is not None and max_height is not None:
-            # Both max width and max height are specified
-            target_width = max_width
-            target_height = max_height
-        elif max_width is not None:
-            # Only max width is specified
-            target_width = max_width
-            target_height = int(target_width / aspect_ratio)
-        elif max_height is not None:
-            # Only max height is specified
-            target_height = max_height
-            target_width = int(target_height * aspect_ratio)
-        else:
-            # Neither max width nor max height is specified, return original image
-            return resources_pb2.Image(base64=file_bytes)
+        # Add the new keywords to the metadata dictionary
+        all_keywords = existing_keywords.union(set(keywords))
+        metadata['keywords'] = ','.join(all_keywords)
 
-        # Resize the image using OpenCV
-        resized_image = cv2.resize(
-            image, (target_width, target_height), interpolation=cv2.INTER_LANCZOS4
+        # If the keywords tag didn't exist in the metadata, add it now
+        if 'keywords' not in metadata:
+            metadata['keywords'] = ','.join(keywords)
+
+        # Finally, we use ffmpeg to write the new metadata back to the file
+        ffmpeg_cmd = f'ffmpeg -i "{video_file_path}" '
+
+        for key, value in metadata.items():
+            ffmpeg_cmd += f'-metadata {key}="{value}" '
+        ffmpeg_cmd += f'-metadata description="{description}" '
+
+        new_file = f"{pathlib.Path(video_file_path).parent}/{pathlib.Path(video_file_path).stem}_new{pathlib.Path(video_file_path).suffix}"
+        ffmpeg_cmd += f'-c copy "{new_file}"'
+        print("_______________", ffmpeg_cmd)
+        subprocess.call(ffmpeg_cmd, shell=True)
+
+        # If everything worked correctly, we can delete the old file and rename the new one
+        os.remove(video_file_path)
+        os.rename(f"{new_file}", video_file_path)
+
+    async def writeTagsMedia(self, fname, KW=None, caption=None, description=None):
+
+        keyCount = 0
+        keyNames = ""
+        keyword = ""
+        for key in KW:
+            keyCount += 1
+            keyNames = keyNames + str(key) + " "
+            keyword = keyword + f" -keywords-='{key}' -keywords+='{key}'"
+        command = f"exiftool -overwrite_original {keyword} '{str(fname)}'"
+        self.logger.info(
+            f"|Tag Media| Command: {command}"
         )
 
-        # Convert the resized image to RGB format
-        rgb_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
-
-        # Encode the resized image to the specified format
-        if format is None:
-            ext = file_path.lower().split(".")[-1]
-        else:
-            ext = format.lower()
-        if ext == "jpg" or ext == "jpeg":
-            encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-        elif ext == "png":
-            encode_params = [int(cv2.IMWRITE_PNG_COMPRESSION), 9]
-        elif ext == "webp":
-            encode_params = [int(cv2.IMWRITE_WEBP_QUALITY), 90]
-        else:
-            raise ValueError(f"Unsupported image format: {ext}")
-        success, encoded_image = cv2.imencode("." + ext, rgb_image, encode_params)
-        if not success:
-            raise RuntimeError("Failed to encode image")
-
-        # Convert the encoded image to a base64-encoded string and wrap it in an Image protobuf message
-        encoded_string = base64.b64encode(encoded_image).decode("utf-8")
-        return resources_pb2.Image(base64=encoded_string)
-
-    # Save the resized image to disk using OpenCV
-    # cv2.imwrite(output_path, resized_image)
-    # return resized_image
+        res = os.system(command)
+        self.logger.info(
+            f"|Tag Media| {keyCount} keywords added: {keyNames} to {str(fname)}"
+        )
 
     async def id_obj_image(self, fname, writeTags):
         import ast
 
-        self.logger.debug("|OBJ ID Image| Starting identification: " + str(fname))
+        self.logger.debug(
+            f"OBJ ID Image| Starting identification: {str(fname)}")
         text = ""
 
         try:
@@ -254,10 +272,9 @@ class ProcessMedia:
                 + '"}}'
             )
             self.logger.debug(
-                "|OBJ ID Image| Debug: " + fm_config.OBJ_ID_API_URL,
-                fm_config.OBJ_ID_HEADER,
+                f"|OBJ ID Image| Obj ID details: {fm_config.OBJ_ID_API_URL}, {fm_config.OBJ_ID_HEADER}"
             )
-            self.logger.debug("|OBJ ID Image| Payload: " + str(payload))
+            self.logger.debug(f"|OBJ ID Image| Payload: {str(payload)}")
 
             url = fm_config.OBJ_ID_API_URL
             headers = fm_config.OBJ_ID_HEADER
@@ -269,10 +286,11 @@ class ProcessMedia:
 
             data = json.loads(response)
 
-            inference = json.loads(data["output"]["inference"].replace("'", '"'))
+            inference = json.loads(
+                data["output"]["inference"].replace("'", '"'))
             unique_cls = list(set([d["cls"] for d in inference]))
 
-            self.logger.info("|OBJ ID Image| Text: " + str(unique_cls))
+            self.logger.info(f"|OBJ ID Image| Text: {str(unique_cls)}")
             clsCount = 0
             tags = ""
             tagNames = ""
@@ -290,20 +308,21 @@ class ProcessMedia:
                         + "' "
                     )
                 command = (
-                    "exiftool -overwrite_original " + tags + " '" + str(fname) + "'"
+                    "exiftool -overwrite_original " +
+                    tags + " '" + str(fname) + "'"
                 )
                 res = os.system(command)
                 self.logger.info(
-                    "|Tag Image| Object identified  " + tagNames + " to " + str(fname)
+                    f"|Tag Image| {clsCount} objects identified {tagNames} to {str(fname)}"
                 )
             else:
                 return str(unique_cls)
 
         except Exception as e:
-            self.logger.error("|OBJ ID Image| ERROR: " + str(e))
+            self.logger.error(f"|OBJ ID Image| ERROR: {str(e)}")
 
     async def ocr_image(self, fname, writeTags):
-        self.logger.debug("|OCR image| Starting OCR: " + str(fname))
+        self.logger.debug(f"|OCR image| Starting OCR: {str(fname)}")
         text = ""
 
         try:
@@ -314,7 +333,7 @@ class ProcessMedia:
                 + str(fm_config.OCR_MIN_CONFIDENCE)
                 + '"}'
             )
-            self.logger.debug("|OCR Image| Payload: " + str(payload))
+            self.logger.debug(f"|OCR Image| Payload: {str(payload)}")
 
             r = requests.post(
                 fm_config.OCR_API_URL,
@@ -323,7 +342,8 @@ class ProcessMedia:
             ).content
 
             ocr = json.loads(r.decode("utf-8"))
-            self.logger.info("|OCR Image| Text: " + str(ocr["full_text"]))
+            # self.logger.info(f"|OCR Image| Text: {str(ocr['full_text'])}")
+
             if writeTags:
                 command = (
                     "exiftool -overwrite_original -Caption-Abstract='"
@@ -337,23 +357,26 @@ class ProcessMedia:
                 return str(ocr["full_text"])
 
         except Exception as e:
-            self.logger.error("|OCR Image| ERROR: " + str(e))
+            self.logger.error(f"|OCR Image| ERROR: {str(e)}")
 
     async def preProcessVideo(self, fname):
-
-        self.create_ramdisk(fm_config.RAMDISK_DIR, fm_config.RAMDISK_SIZE_MB)
+        self.createTempDirectory(fname)
+        # self.create_ramdisk(fm_config.RAMDISK_DIR, fm_config.RAMDISK_SIZE_MB)
         # self.splitVideo(
         #     fname, fm_config.RAMDISK_DIR, fm_config.SAVING_FRAMES_PER_SECOND
         # )
         self.split_video_into_scenes(
-            fname, threshold=1, output_dir=fm_config.RAMDISK_DIR
+            fname,
+            threshold=fm_config.SCENE_DETECT_THRESHOLD,
+            output_dir=fm_config.RAMDISK_DIR,
         )
 
         self.extract_audio(fname, fm_config.RAMDISK_DIR)
 
     async def transcribe(self, fname, writeTags):
         # -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/audio.aac","model": "large-v2"}}'
-        self.logger.info("|Transcribe| Generating transcription for: " + str(fname))
+        self.logger.info(
+            f"|Transcribe| Generating transcription for: {str(fname)}")
 
         # try:
         payload = (
@@ -364,10 +387,9 @@ class ProcessMedia:
             + str(fm_config.TRANSCRIBE__MODEL_NAME)
             + '"}}'
         )
-        self.logger.info("|Transcribe| Payload: " + str(payload))
+        self.logger.info(f"|Transcribe| Payload: {str(payload)}")
         self.logger.debug(
-            "|Transcribe| Transcribe server: " + str(fm_config.TRANSCRIBE_API_URL)
-        )
+            f"|Transcribe| Transcribe server: {str(fm_config.TRANSCRIBE_API_URL)}")
 
         r = requests.post(
             fm_config.TRANSCRIBE_API_URL,
@@ -382,7 +404,7 @@ class ProcessMedia:
         # # print("curl ", url, " ", headers, "-d ", data)
         # response = requests.post(url, headers=headers, data=data)
         # response = response.text
-        self.logger.debug("|Transcribe| Transcribe result: " + str(r))
+        self.logger.info(f"|Transcribe| Transcribe success, result: {str(r)}")
 
         transcription = json.loads(r)
         # transcription = json.loads(r.decode("utf-8"))
@@ -413,7 +435,8 @@ class ProcessMedia:
         #     )
 
     async def caption_image(self, fname, writeTags):
-        self.logger.info("|Caption Image| Generating caption for: " + str(fname))
+        self.logger.info(
+            f"|Caption Image| Generating caption for: {str(fname)}")
         try:
             payload = (
                 '{"input": {"image":"'
@@ -421,10 +444,9 @@ class ProcessMedia:
                 + str(fname)
                 + '" ,"reward": "clips_grammar"}}'
             )
-            self.logger.debug("|Caption Image| Payload: " + str(payload))
+            self.logger.debug(f"|Caption Image| Payload: {str(payload)}")
             self.logger.debug(
-                "|Caption Image| Image server: " + str(fm_config.CAPTION_API_URL)
-            )
+                f"| Caption Image | Image server: {str(fm_config.CAPTION_API_URL)}")
 
             r = requests.post(
                 fm_config.CAPTION_API_URL,
@@ -434,10 +456,7 @@ class ProcessMedia:
 
             caption = json.loads(r.decode("utf-8"))
             self.logger.info(
-                "|Caption Image| Caption generated for file "
-                + str(fname)
-                + ": "
-                + caption["output"]
+                f"|Caption Image| Caption generated for file {str(fname)}: {caption['output']}"
             )
             if writeTags:
                 command = (
@@ -453,10 +472,7 @@ class ProcessMedia:
 
         except Exception as e:
             self.logger.error(
-                "|Caption image| Image captioning unsuccessful: "
-                + str(e)
-                + " "
-                + str(fname)
+                f"|Caption image| Image captioning unsuccessful: {str(e)} {str(fname)}"
             )
             # resize_with_aspect_ratio(
             #     file_path, max_width=None, max_height=None, format=None
@@ -531,7 +547,8 @@ class ProcessMedia:
             )  # + " -iptc:keywords-='" + concept.name + "' " + " -iptc:keywords+='" + concept.name + "' "
         if len(tags) > 0:
             self.logger.info("|Tag Image| Tags generated: " + tagNames)
-            command = "exiftool -overwrite_original " + tags + " '" + str(fname) + "'"
+            command = "exiftool -overwrite_original " + \
+                tags + " '" + str(fname) + "'"
             res = os.system(command)
             self.logger.debug("|Tag Image| Tags are assigend  " + str(fname))
 
@@ -545,10 +562,12 @@ class ProcessMedia:
 
     async def reverse_geotag(self, fname):
         if self.imgHasGPS(fname):
-            self.logger.info("|Reverse Geocode| Reverse geocoding: " + str(fname))
+            self.logger.info(
+                "|Reverse Geocode| Reverse geocoding: " + str(fname))
             # The output variable stores the output of the  command
             command = "exiftool -c '%.9f' -GPSPosition '" + str(fname) + "'"
-            self.logger.debug("|Reverse Geocode| Extracting GPS info: " + str(command))
+            self.logger.debug(
+                "|Reverse Geocode| Extracting GPS info: " + str(command))
             output = subprocess.getoutput(command)
             command = ""
             try:
@@ -581,12 +600,14 @@ class ProcessMedia:
                         + "'"
                     )
                 command = (
-                    "exiftool -overwrite_original " + command + " '" + str(fname) + "'"
+                    "exiftool -overwrite_original " +
+                    command + " '" + str(fname) + "'"
                 )
 
                 res = os.system(command)
                 self.logger.info(
-                    "|Reverse Geocode| Reverse geocoding successfull: " + str(command)
+                    "|Reverse Geocode| Reverse geocoding successfull: " +
+                    str(command)
                 )
 
             except Exception as e:
@@ -660,7 +681,8 @@ class ProcessMedia:
                 )
                 train_dir = os.listdir(fm_config.FACE_CLASSIFIER_TRAIN_DIR)
                 for person in train_dir:
-                    pix = os.listdir(fm_config.FACE_CLASSIFIER_TRAIN_DIR + str(person))
+                    pix = os.listdir(
+                        fm_config.FACE_CLASSIFIER_TRAIN_DIR + str(person))
                     # Loop through each training image for the current person
                     for person_img in pix:
                         # Get the face encodings for the face in each image file
@@ -670,7 +692,8 @@ class ProcessMedia:
                             + "/"
                             + person_img
                         )
-                        face_bounding_boxes = face_recognition.face_locations(face)
+                        face_bounding_boxes = face_recognition.face_locations(
+                            face)
 
                         # If training image contains exactly one face
                         if len(face_bounding_boxes) == 1:
@@ -725,7 +748,8 @@ class ProcessMedia:
                     + str(name[0])
                 )
                 command = (
-                    "exiftool -overwrite_original " + faces + " '" + str(fname) + "'"
+                    "exiftool -overwrite_original " +
+                    faces + " '" + str(fname) + "'"
                 )
                 res = os.system(command)
                 self.logger.info(
@@ -756,10 +780,12 @@ class ProcessMedia:
                 + "'"
             )
             os.system(command)
-            self.logger.info("|Copy to IPTC| Tags copied to IPTC: " + str(fname))
+            self.logger.info(
+                "|Copy to IPTC| Tags copied to IPTC: " + str(fname))
         except Exception as e:
             self.logger.warning(
-                "|Copy to IPTC| Copy tags unsuccessful: " + str(e) + " " + str(fname)
+                "|Copy to IPTC| Copy tags unsuccessful: " +
+                str(e) + " " + str(fname)
             )
 
     def find_FileModifyDate(self, fname):
@@ -770,7 +796,7 @@ class ProcessMedia:
         )
 
         command_output = command_output.replace("\\n", "")
-        date = command_output[len(command_output) - 8 : len(command_output) - 1]
+        date = command_output[len(command_output) - 8: len(command_output) - 1]
         return date
 
     def create_json(self, fname):
@@ -783,7 +809,8 @@ class ProcessMedia:
             + ".json"
         )
         os.system(command)
-        f = str(os.path.dirname(fname)) + "/" + os.path.basename(fname) + ".json"
+        f = str(os.path.dirname(fname)) + "/" + \
+            os.path.basename(fname) + ".json"
         f = fm_config.JSON_FOLDER + os.path.basename(fname) + ".json"
         # print(f)
         os.chmod(f, 0o777)
@@ -793,7 +820,8 @@ class ProcessMedia:
         command = ""
         # Add document to search engine
         command = (
-            fm_config.SOLR_POST_EXE + " -c " + collection + " '" + str(fname) + "'"
+            fm_config.SOLR_POST_EXE + " -c " +
+            collection + " '" + str(fname) + "'"
         )
         os.system(command)
 
@@ -808,7 +836,8 @@ class ProcessMedia:
         import datetime
 
         # get the date the picture was taken
-        date_taken = datetime.datetime.fromtimestamp(os.path.getctime(file_path))
+        date_taken = datetime.datetime.fromtimestamp(
+            os.path.getctime(file_path))
 
         # create the destination folder if it doesn't exist
         year = str(date_taken.year)
@@ -880,7 +909,8 @@ class ProcessMedia:
                 face_locations = face_recognition.face_locations(imageArray)
 
                 self.logger.info(
-                    "I found {} face(s) in {}".format(len(face_locations), str(fname))
+                    "I found {} face(s) in {}".format(
+                        len(face_locations), str(fname))
                 )
 
                 for face_location in face_locations:

@@ -54,7 +54,8 @@ def init(args):
 async def add_metadata(file_path, args):
     print(file_path)
     # code to add keyword and caption to file's metadata
-    os.system(f"exiftool -overwrite_original  -keywords='new keyword' {file_path}")
+    os.system(
+        f"exiftool -overwrite_original  -keywords='new keyword' {file_path}")
     print(f"Added keyword to {file_path}")
     pass
 
@@ -118,7 +119,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
         # VIDEO WORKFLOW
         if file.lower().endswith(args.videoExtensions):
             # BELOW DISABLED FOR TESTING
-            # await processMedia.preProcessVideo(file_path)
+            await processMedia.preProcessVideo(file_path)
             tmpFName = Path(file_path).stem
             tmpPath = fm_config.RAMDISK_DIR + str(tmpFName)
             logger.info("Temp path:" + str(tmpPath))
@@ -128,52 +129,55 @@ async def process_media(imagesQueue, processMedia, logger, args):
             ocr = []
             objects = []
 
-            for file in os.listdir(tmpPath):
+            for file in sorted(os.listdir(tmpPath), key=str.lower):
                 file = os.path.abspath(os.path.join(Path(tmpPath), file))
-                # print("fileincontroller", file)
-                # exiftool -Description="lklklllklkl" -Title="title" -LongDescription="transcript" -Keywords="lklk,lklkl,aaa" 202301214088.mov
                 if file.lower().endswith(args.imageExtensions):
+                    # Caption all the scene images
                     c = str(await processMedia.caption_image(file, False))
                     caption.append(c)
+
+                    # Identify faces
                     f = str(await processMedia.classify_faces(file, False))
                     faces = add_to_list_if_not_exist(faces, f)
 
+                    # OCR texts in scene
                     o = str(await processMedia.ocr_image(file, False))
                     ocr.append(o)
+
+                    # Identfy objects
                     ob = str(await processMedia.id_obj_image(file, False))
                     objects = add_to_list_if_not_exist(objects, ob)
+
+                    # Transcribe audio
                 if file.lower().endswith(args.audioExtensions):
-                    t = str(await processMedia.transcribe(file, False))
+                    # t = str(await processMedia.transcribe(file, False))
                     pass
-                    # caption = caption + processMedia.caption_image(file, False)
-            # processMedia.clean_ramdisk(fm_config.RAMDISK_DIR)
+            # processMedia.removeTempDirectory(file_path)
+
             print("captions --------------")
+            print(caption)
 
-            # for c in caption:
-            #     print(c)
             print("faces --------------")
-            print(faces)
-            # print(extract_unique_keywords(faces))
+            print(faces, file_path)
+            # await processMedia.write_keywords_metadata_to_video_file(video_file_path=file_path, keywords=faces)
 
-            # print("ocr --------------")
-            # print(extract_unique_keywords(ocr))
-            #
+            print("ocr --------------")
+            print(ocr)
+
             print("objects --------------")
             print(objects)
-            # print(extract_unique_keywords(objects))
+            kw = ocr + faces + objects
+            d = ""
+            print(kw)
+            for ele in caption:
+                d += " " + ele
+            await processMedia.write_keywords_metadata_to_video_file(video_file_path=file_path, keywords=kw, description=d)
 
-            # print result
-
-            # for ob in objects:
-            #     print(ob)
-            # print(t)
-            # processMedia.clean_ramdisk(fm_config.RAMDISK_DIR)
-
-        # await processMedia.info()
         imagesQueue.task_done()
         stop_timer.stop()
         logger.info(
-            "Media processed in: " + str(stop_timer.duration()) + " " + str(file_path)
+            "Media processed in: " +
+            str(stop_timer.duration()) + " " + str(file_path)
         )
 
 
@@ -245,7 +249,8 @@ async def main():
     task1 = asyncio.create_task(watch_folder(imagesQueue, args))
     # start multiple tasks that process files in the imagesQueue
     task2 = [
-        asyncio.create_task(process_media(imagesQueue, processMedia, logger, args))
+        asyncio.create_task(process_media(
+            imagesQueue, processMedia, logger, args))
         for _ in range(5)
     ]
 
