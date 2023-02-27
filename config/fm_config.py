@@ -93,6 +93,14 @@ COPY_TAGS_TO_IPTC = True
 ID_OBJ = False
 MOVE_FILE = False
 
+
+CAPTION_VIDEO = True
+REVERSE_GEOTAG_VIDEO = True
+CLASSIFY_FACES_VIDEO = True
+OCR_VIDEO = True
+ID_OBJ_VIDEO = True
+MOVE_FILE_VIDEO = False
+TRANSCRIBE_VIDEO = True
 # --------------------------- Image processor config ---------------------------
 FACE_TRAINING_DIR = "/mnt/Photos/005-PhotoBook/000-knownfaces/"
 REVERSE_GEO_URL = "https://api.opencagedata.com/geocode/v1/json?q="
@@ -113,6 +121,7 @@ IMAGE_CAPTION_HEADER = {"content-type": "application/json"}
 OCR_CAPTION_HEADER = {"content-type": "application/json"}
 OCR_API_URL = "http://192.168.1.121:9011/predict"
 OCR_MIN_CONFIDENCE = 0.6
+
 # --------------------------- Image processor OCR config ---------------------------
 DET_MODEL_DIR = (
     "/mnt/Software/200-Apps/imageFlow/models/whl/det/en/en_PP-OCRv3_det_infer/"
@@ -138,7 +147,7 @@ OBJ_ID__MIN_CONFIDENCE = 0.5
 TRANSCRIBE_HEADER = {"content-type": "application/json"}
 TRANSCRIBE_API_URL = "http://192.168.1.121:9996/predictions"
 TRANSCRIBE__MODEL_NAME = "large-v2"
-TRANSCRIBE__MODEL_NAME = "tiny"
+# TRANSCRIBE__MODEL_NAME = "tiny"
 
 # NOT IMPLEMNETED
 TRANSCRIBE_MIN_CONFIDENCE = 0.5
@@ -150,7 +159,7 @@ RAMDISK_DIR = "/mnt/Photos/001-Process/tmp/"
 # RAMDISK_DIR = "/tmp/"
 RAMDISK_SIZE_MB = 512
 SAVING_FRAMES_PER_SECOND = 1 / 5
-SCENE_DETECT_THRESHOLD = 1
+SCENE_DETECT_THRESHOLD = 2
 
 # --------------------------- Solr config ---------------------------
 SOLR_POST_EXE = "/root/solr-8.11.1/bin/post"

@@ -60,6 +60,49 @@ workflow_group.add_argument(
 )
 
 
+workflow_group.add_argument(
+    "-wcv",
+    "--captionVideo",
+    help=f"Caption Video [True/False]. Default is: {fm_config.CAPTION_VIDEO}",
+    default=fm_config.CAPTION_VIDEO,
+)
+workflow_group.add_argument(
+    "-widv",
+    "--idObjVideo",
+    help=f"Identify objects in video [True/False]. Default is: {fm_config.ID_OBJ_VIDEO}",
+    default=fm_config.ID_OBJ_VIDEO,
+)
+workflow_group.add_argument(
+    "-wmv",
+    "--moveFileVideo",
+    help=f"Move video [True/False]. Default is: {fm_config.MOVE_FILE_VIDEO}",
+    default=fm_config.MOVE_FILE_VIDEO,
+)
+workflow_group.add_argument(
+    "-wrv",
+    "--reverseGeotagVideo",
+    help=f"Reverse geocoding video [True/False]. Default is: {fm_config.REVERSE_GEOTAG_VIDEO}",
+    default=fm_config.REVERSE_GEOTAG_VIDEO,
+)
+workflow_group.add_argument(
+    "-wfv",
+    "--classifyFacesVideo",
+    help=f"Find and classify faces in video [True/False]. Default is: {fm_config.CLASSIFY_FACES_VIDEO}",
+    default=fm_config.CLASSIFY_FACES_VIDEO,
+)
+workflow_group.add_argument(
+    "-wov",
+    "--ocrVideo",
+    help=f"Perform scene OCR in video [True/False]. Default is: {fm_config.OCR_VIDEO}",
+    default=fm_config.OCR_VIDEO,
+)
+workflow_group.add_argument(
+    "-wtv",
+    "--transcribeVideo",
+    help=f"Perform scene OCR in video [True/False]. Default is: {fm_config.TRANSCRIBE_VIDEO}",
+    default=fm_config.TRANSCRIBE_VIDEO,
+)
+
 folders_group.add_argument(
     "-c",
     "--configFileDirectory",
@@ -181,4 +224,3 @@ settings_group.add_argument(
 # parse the arguments
 args = parser.parse_args()
 sys.path.append(args.configFileDirectory)
-from config import fm_config
