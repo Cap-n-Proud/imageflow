@@ -63,7 +63,8 @@ OCR_TIMEOUT = 60
 
 MOVE_EXT_IMG = ".jpg,.png,"
 MOVE_EXT_VIDEO = ".mov,.mp4,.mkv,"
-MOVE_EXT = MOVE_EXT_IMG + MOVE_EXT_VIDEO + MOVE_EXT_IMG.upper() + MOVE_EXT_VIDEO.upper()
+MOVE_EXT = MOVE_EXT_IMG + MOVE_EXT_VIDEO + \
+    MOVE_EXT_IMG.upper() + MOVE_EXT_VIDEO.upper()
 PRE_PROCESS_ORIG = "/mnt/Photos/000-InstantUpload/"
 # PRE_PROCESS_DEST = "/mnt/Photos/000-Process/"
 
@@ -93,8 +94,6 @@ OCR_VIDEO = True
 ID_OBJ_VIDEO = True
 MOVE_FILE_VIDEO = False
 TRANSCRIBE_VIDEO = True
-
-
 
 
 # --------------------------- Image processor config ---------------------------
@@ -161,8 +160,8 @@ TRANSCRIBE_MIN_CONFIDENCE = 0.5
 RAMDISK_DIR = "/mnt/Photos/001-Process/tmp/"
 RAMDISK_SIZE_MB = 100
 SAVING_FRAMES_PER_SECOND = 1 / 5
-SAMPLING_STRATEGY = ["0.1","0.5","0.9"]
-MIN_SCENES=2
+SAMPLING_STRATEGY = ["0.1", "0.5", "0.9"]
+MIN_SCENES = 2
 # --------------------------- Solr config ---------------------------
 SOLR_POST_EXE = "/root/solr-8.11.1/bin/post"
 SOLR_DOC_COLLECTION = "documents"

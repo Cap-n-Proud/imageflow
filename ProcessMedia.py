@@ -109,7 +109,6 @@ class ProcessMedia:
         scene_manager = SceneManager()
         scene_manager.add_detector(
             AdaptiveDetector(adaptive_threshold=threshold))
-        # scene_manager.add_detector(AdaptiveDetector(threshold=threshold))
         scene_manager.detect_scenes(video, show_progress=True)
         scene_list = scene_manager.get_scene_list()
         filename, file_extension = os.path.splitext(
@@ -123,7 +122,7 @@ class ProcessMedia:
         else:
             a = " "
             self.logger.info(
-                f"Limited number of scenes found: {video_path}, threshold {threshold}. Proceeding with alternative sampling strategy: {fm_config.SAMPLING_STRATEGY}")
+                f"Limited number of scenes found: {video_path}, threshold {threshold}. Proceeding with time-fixed sampling strategy: {fm_config.SAMPLING_STRATEGY}")
             video = cv2.VideoCapture(video_path)
             sampling_strategy = fm_config.SAMPLING_STRATEGY
             screenshot_number = 0
@@ -212,6 +211,17 @@ class ProcessMedia:
         with open(path, "rb") as f:
             return f.read()
 
+    import re
+
+    async def stripIt(self, s):
+        """
+        Removes all html tags from a string, leaving just the
+        content behind.
+        """
+        a = re.sub('<.*?>', '', s).replace('"', '').replace("\n", "")
+
+        return re.sub('\s{2,}', ' ', a)
+
     async def write_keywords_metadata_to_video_file(
         self, video_file_path, keywords, description
     ):
@@ -255,19 +265,28 @@ class ProcessMedia:
         ffmpeg_cmd = f'ffmpeg -i "{video_file_path}" '
 
         for key, value in metadata.items():
-            ffmpeg_cmd += f'-metadata {key}="{value}" '
-        ffmpeg_cmd += f'-metadata description="{description}" '
+            ffmpeg_cmd += f"-metadata {key}='{value}' "
+
+        d = await self.stripIt(description)
+
+        ffmpeg_cmd += f'-metadata description="{d}" '
 
         new_file = f"{pathlib.Path(video_file_path).parent}/{pathlib.Path(video_file_path).stem}_new{pathlib.Path(video_file_path).suffix}"
         ffmpeg_cmd += f'-c copy "{new_file}"'
         self.logger.info(
             f"|write_keywords_metadata_to_video_file|: {ffmpeg_cmd}")
+        try:
+            command_run = subprocess.call(ffmpeg_cmd, shell=True)
+            if command_run == 0:
+                print("Its worked!!")
+                os.remove(video_file_path)
+                os.rename(f"{new_file}", video_file_path)
+            else:
+                print("There was a problem, so do something else")
+            # If everything worked correctly, we can delete the old file and rename the new one
 
-        subprocess.call(ffmpeg_cmd, shell=True)
-
-        # If everything worked correctly, we can delete the old file and rename the new one
-        os.remove(video_file_path)
-        os.rename(f"{new_file}", video_file_path)
+        except Exception as e:
+            print("ERROR!!!")
 
     async def writeTagsMedia(self, fname, KW=None, caption=None, description=None):
 
@@ -283,14 +302,14 @@ class ProcessMedia:
 
         res = os.system(command)
         self.logger.info(
-            f"|Tag Media| {keyCount} keywords added: {keyNames} to {str(fname)}"
+            f"|Tag Media| {keyCount} keywords added: {keyNames} to '{str(fname)}'"
         )
 
     async def id_obj_image(self, fname, writeTags):
         import ast
 
         self.logger.debug(
-            f"|OBJ ID Image| Starting identification: {str(fname)}")
+            f"|OBJ ID Image| Starting identification: '{str(fname)}'")
         text = ""
 
         try:
@@ -571,12 +590,6 @@ class ProcessMedia:
 
         return tags
 
-    def tag_movie(self, fname):
-        # with open(fname, "rb") as f:
-        #     file_bytes = f.read()
-
-        self.logger.info("Movie tags are assigend here")
-
     async def reverse_geotag(self, fname):
         if self.imgHasGPS(fname):
             self.logger.info(
@@ -752,9 +765,6 @@ class ProcessMedia:
                 # names = names + " " + str(name)
                 if name[0] not in names:
                     names.append(name[0])
-                # print("FACE:", name[0])
-                # print("NAMES:", names)
-                # print("NAME:", name)
 
             if writeTags:
                 faces = (
