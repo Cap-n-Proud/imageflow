@@ -7,6 +7,7 @@
 
 # NUC
 # python3 controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Apps_Config/imageflow/" -s "/home/nuc/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" -r true
+# python3 controller.py -iw "/mnt/Documents/501-Knowledge/200- Personal/Food/Pizza alla Romana/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Apps_Config/imageflow/" -s "/home/nuc/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" -r true --logLevel "INFO"
 
 
 import asyncio
@@ -54,7 +55,8 @@ def init(args):
 async def add_metadata(file_path, args):
     print(file_path)
     # code to add keyword and caption to file's metadata
-    os.system(f"exiftool -overwrite_original  -keywords='new keyword' {file_path}")
+    os.system(
+        f"exiftool -overwrite_original  -keywords='new keyword' {file_path}")
     print(f"Added keyword to {file_path}")
     pass
 
@@ -112,7 +114,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 await processMedia.copy_tags_to_IPTC(file_path)
             if args.idObjImage:
                 await processMedia.id_obj_image(file_path, True)
-            if args.moveFile:
+            if args.moveFileVideo:
                 await processMedia.move_file(file_path, args.imageDestinationDir)
 
         # VIDEO WORKFLOW
@@ -150,11 +152,9 @@ async def process_media(imagesQueue, processMedia, logger, args):
                         objects = add_to_list_if_not_exist(objects, ob)
 
                     # Transcribe audio
-                t = ""
                 if file.lower().endswith(args.audioExtensions) and args.transcribeVideo:
                     t = " |Transcribe|: "
-                    t += str(await processMedia.transcribe(file, False))
-                    pass
+                    t += str(await processMedia.transcribe(file))
 
             processMedia.removeTempDirectory(file_path)
 
@@ -162,6 +162,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
             logger.info(f"Faces: {faces}")
             logger.info(f"OCR: {ocr}")
             logger.info(f"Objects: {objects}")
+            logger.info(f"Transcription: {t}|")
 
             kw = faces + objects
             d = ""
@@ -173,8 +174,9 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 if ele != "None":
                     o += ". " + ele
 
+            description = d + o + t
             await processMedia.write_keywords_metadata_to_video_file(
-                video_file_path=file_path, keywords=kw, description=d + o + t
+                video_file_path=file_path, keywords=kw, description=description
             )
             if args.moveFileVideo:
                 await processMedia.move_file(file_path, args.videoDestinationFolder)
@@ -182,7 +184,8 @@ async def process_media(imagesQueue, processMedia, logger, args):
         imagesQueue.task_done()
         stop_timer.stop()
         logger.info(
-            "Media processed in: " + str(stop_timer.duration()) + " " + str(file_path)
+            "Media processed in: " +
+            str(stop_timer.duration()) + " " + str(file_path)
         )
 
 
@@ -196,12 +199,9 @@ async def recursive_listdir(path, recursive=False):
                 result.append(os.path.join(root, name))
         return result
 
-
-#
-# files = list_files("/path/to/directory", recursive=True)
-# print(files)
-
 # function that watches a folder for new files
+
+
 async def watch_folder(imagesQueue, args):
     processed_files = set()
 
@@ -249,12 +249,14 @@ async def main():
     processMedia = ProcessMedia.ProcessMedia(args)
     logger.info("Server successfully started:" + str(datetime.now()))
     logger.info("Settings:" + str(vars(args)))
+    # processMedia.create_ramdisk(fm_config.RAMDISK_DIR, fm_config.RAMDISK_SIZE_MB)
 
     # start the task that watches the folder for new files
     task1 = asyncio.create_task(watch_folder(imagesQueue, args))
     # start multiple tasks that process files in the imagesQueue
     task2 = [
-        asyncio.create_task(process_media(imagesQueue, processMedia, logger, args))
+        asyncio.create_task(process_media(
+            imagesQueue, processMedia, logger, args))
         for _ in range(5)
     ]
 

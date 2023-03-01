@@ -54,23 +54,28 @@ class ProcessMedia:
     def createTempDirectory(self, fname):
 
         directory = os.path.splitext(os.path.basename(fname))[0]
+        directory = directory.replace("'", "")
         # Check if the directory exists already
         if os.path.isdir(fm_config.RAMDISK_DIR + directory):
             self.logger.debug(f"Directory {directory} already exists.")
             return
-        os.system(f"mkdir {fm_config.RAMDISK_DIR}{directory}")
-        self.logger.debug(f"Directory created at '{fm_config.RAMDISK_DIR}{directory}'")
+        command = f"mkdir '{fm_config.RAMDISK_DIR}{directory}'"
+        os.system(command)
+        self.logger.debug(
+            f"Directory created at '{fm_config.RAMDISK_DIR}{directory}'")
 
     def removeTempDirectory(self, fname):
         directory = os.path.splitext(os.path.basename(fname))[0]
+        directory = directory.replace("'", "")
         # Check if the directory exists
         if not os.path.isdir(fm_config.RAMDISK_DIR + directory):
             self.logger.info(
                 f"Directory {fm_config.RAMDISK_DIR}{directory} does not exists."
             )
             return
-        os.system(f"rm -r {fm_config.RAMDISK_DIR}{directory}")
-        self.logger.info(f"Directory removed: {fm_config.RAMDISK_DIR}{directory}.")
+        os.system(f"rm -r '{fm_config.RAMDISK_DIR}{directory}'")
+        self.logger.info(
+            f"Directory removed: '{fm_config.RAMDISK_DIR}{directory}'.")
 
     def create_ramdisk(self, directory, size):
         # Check if the directory exists already
@@ -84,7 +89,7 @@ class ProcessMedia:
         # os.system(f"sudo mount -t tmpfs -o size={size}M tmpfs {directory}")
         print(f"Created ramdisk at {directory} with size {size}MB.")
 
-    def clean_ramdisk(self, directory):
+    def remove_ramdisk(self, directory):
         # Check if the directory exists already
         if not os.path.isdir(directory):
             print(f"Directory {directory} does not exists.")
@@ -98,29 +103,34 @@ class ProcessMedia:
 
     def split_video_into_scenes(self, video_path, output_dir=None, threshold=1):
         # Open our video, create a scene manager, and add a detector.
-        self.logger.debug(f"Finding scenes for {video_path}, threshold {threshold}")
+        self.logger.debug(
+            f"Finding scenes for {video_path}, threshold {threshold}")
         video = open_video(video_path)
         scene_manager = SceneManager()
-        scene_manager.add_detector(AdaptiveDetector(adaptive_threshold=threshold))
+        scene_manager.add_detector(
+            AdaptiveDetector(adaptive_threshold=threshold))
         # scene_manager.add_detector(AdaptiveDetector(threshold=threshold))
         scene_manager.detect_scenes(video, show_progress=True)
         scene_list = scene_manager.get_scene_list()
-        filename, file_extension = os.path.splitext(os.path.basename(video_path))
+        filename, file_extension = os.path.splitext(
+            os.path.basename(video_path))
         self.logger.debug(f"Scenes {len(scene_list)}.")
         output_dir = output_dir + "/" + filename
-        if len(scene_list) > 0:
+        if len(scene_list) > fm_config.MIN_SCENES:
             save_images(
                 scene_list=scene_list, video=video, output_dir=output_dir, num_images=1
             )
         else:
             a = " "
-            self.logger.info(f"NO SCENE FOUND: {video_path}, threshold {threshold}")
+            self.logger.info(
+                f"Limited number of scenes found: {video_path}, threshold {threshold}. Proceeding with alternative sampling strategy: {fm_config.SAMPLING_STRATEGY}")
             video = cv2.VideoCapture(video_path)
-            sampling_strategy = ["0.1", "0.5", "0.9"]
+            sampling_strategy = fm_config.SAMPLING_STRATEGY
             screenshot_number = 0
             fps = video.get(cv2.CAP_PROP_FPS)
             frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-            result = [int(frame_count * float(sample)) for sample in sampling_strategy]
+            result = [int(frame_count * float(sample))
+                      for sample in sampling_strategy]
             sampling_frames = ",".join(map("{:,}".format, result))
             self.logger.info(
                 f"frames per second: {fps}, frame count: {frame_count}, sampling frames: {a.join(sampling_frames.split(','))}"
@@ -130,11 +140,13 @@ class ProcessMedia:
                 frame_id = int(frame_count * float(sample))
                 video.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
                 ret, frame = video.read()
-                cv2.imwrite(f"{output_dir}/screenshot{screenshot_number}.jpg", frame)
+                cv2.imwrite(
+                    f"{output_dir}/screenshot{screenshot_number}.jpg", frame)
                 screenshot_number += 1
 
     def extract_audio(self, fname, tmp_folder):
         filename, file_extension = os.path.splitext(os.path.basename(fname))
+        filename = filename.replace("'", "")
 
         command = f"ffmpeg -y -i '{fname}' -vn -acodec copy '{tmp_folder}{filename}/audio.aac'"
         self.logger.debug(f"|extract_audio|: {command}")
@@ -248,7 +260,8 @@ class ProcessMedia:
 
         new_file = f"{pathlib.Path(video_file_path).parent}/{pathlib.Path(video_file_path).stem}_new{pathlib.Path(video_file_path).suffix}"
         ffmpeg_cmd += f'-c copy "{new_file}"'
-        self.logger.debug(f"|write_keywords_metadata_to_video_file|: {ffmpeg_cmd}")
+        self.logger.info(
+            f"|write_keywords_metadata_to_video_file|: {ffmpeg_cmd}")
 
         subprocess.call(ffmpeg_cmd, shell=True)
 
@@ -276,7 +289,8 @@ class ProcessMedia:
     async def id_obj_image(self, fname, writeTags):
         import ast
 
-        self.logger.debug(f"OBJ ID Image| Starting identification: {str(fname)}")
+        self.logger.debug(
+            f"|OBJ ID Image| Starting identification: {str(fname)}")
         text = ""
 
         try:
@@ -305,7 +319,8 @@ class ProcessMedia:
 
             data = json.loads(response)
 
-            inference = json.loads(data["output"]["inference"].replace("'", '"'))
+            inference = json.loads(
+                data["output"]["inference"].replace("'", '"'))
             unique_cls = list(set([d["cls"] for d in inference]))
 
             self.logger.info(f"|OBJ ID Image| Text: {str(unique_cls)}")
@@ -326,7 +341,8 @@ class ProcessMedia:
                         + "' "
                     )
                 command = (
-                    "exiftool -overwrite_original " + tags + " '" + str(fname) + "'"
+                    "exiftool -overwrite_original " +
+                    tags + " '" + str(fname) + "'"
                 )
                 res = os.system(command)
                 self.logger.info(
@@ -378,10 +394,6 @@ class ProcessMedia:
 
     async def preProcessVideo(self, fname):
         self.createTempDirectory(fname)
-        # self.create_ramdisk(fm_config.RAMDISK_DIR, fm_config.RAMDISK_SIZE_MB)
-        # self.splitVideo(
-        #     fname, fm_config.RAMDISK_DIR, fm_config.SAVING_FRAMES_PER_SECOND
-        # )
         self.split_video_into_scenes(
             fname,
             threshold=fm_config.SCENE_DETECT_THRESHOLD,
@@ -390,71 +402,57 @@ class ProcessMedia:
 
         self.extract_audio(fname, fm_config.RAMDISK_DIR)
 
-    async def transcribe(self, fname, writeTags):
+    async def transcribe(self, fname):
         # -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/audio.aac","model": "large-v2"}}'
-        self.logger.info(f"|Transcribe| Generating transcription for: {str(fname)}")
-
-        # try:
-        payload = (
-            '{"input": {"audio":"'
-            + str(fm_config.IMAGES_SERVER_URL)
-            + str(fname)
-            + '" ,"model":"'
-            + str(fm_config.TRANSCRIBE__MODEL_NAME)
-            + '"}}'
-        )
-        self.logger.info(f"|Transcribe| Payload: {str(payload)}")
-        self.logger.debug(
-            f"|Transcribe| Transcribe server: {str(fm_config.TRANSCRIBE_API_URL)}"
-        )
-
-        r = requests.post(
-            fm_config.TRANSCRIBE_API_URL,
-            headers=fm_config.TRANSCRIBE_HEADER,
-            data=payload,
-        ).text
-
-        # url = fm_config.OBJ_ID_API_URL
-        # headers = fm_config.OBJ_ID_HEADER
-        # data = "'" + payload + "'"
-        # data = payload
-        # # print("curl ", url, " ", headers, "-d ", data)
-        # response = requests.post(url, headers=headers, data=data)
-        # response = response.text
-        self.logger.debug(f"|Transcribe| Transcribe success, result: {str(r)}")
-
-        transcription = json.loads(r)
-        # transcription = json.loads(r.decode("utf-8"))
-        # self.logger.info(f"|Transcribe| Transcription generated for file {str(fname)}: {transcription["output"]["transcription"]})
         self.logger.info(
-            "|Transcribe| Caption generated for file "
-            + str(fname)
-            + ": "
-            + transcription["output"]["transcription"][:100]
-        )
+            f"|Transcribe| Generating transcription for: '{str(fname)}'. Model: '{fm_config.TRANSCRIBE__MODEL_NAME}'")
 
-        if writeTags:
-            command = (
-                "exiftool -overwrite_original -Caption-Abstract='"
-                + str(transcription["output"]["transcription"])
-                + "' '"
+        try:
+            payload = (
+                '{"input": {"audio":"'
+                + str(fm_config.IMAGES_SERVER_URL)
                 + str(fname)
-                + "'"
+                + '" ,"model":"'
+                + str(fm_config.TRANSCRIBE__MODEL_NAME)
+                + '"}}'
             )
-            res = os.system(command)
-        else:
-            return str(transcription["output"]["transcription"])
+            self.logger.debug(f"|Transcribe| Payload: '{str(payload)}'")
+            self.logger.debug(
+                f"|Transcribe| Transcribe server: '{str(fm_config.TRANSCRIBE_API_URL)}'"
+            )
 
-        # except Exception as e:
-        #     self.logger.error(
-        #         "|Transcription| Transcription unsuccessful: "
-        #         + str(e)
-        #         + " "
-        #         + str(fname)
-        #     )
+            r = requests.post(
+                fm_config.TRANSCRIBE_API_URL,
+                headers=fm_config.TRANSCRIBE_HEADER,
+                data=payload,
+            ).text
+
+            self.logger.debug(
+                f"|Transcribe| Transcribe success, result: {str(r)}")
+
+            transcription = json.loads(r)
+            # transcription = json.loads(r.decode("utf-8"))
+            # self.logger.info(f"|Transcribe| Transcription generated for file {str(fname)}: {transcription["output"]["transcription"]})
+            self.logger.info(
+                "|Transcribe| Transcription generated for file: "
+                + str(fname)
+                + ": "
+                + transcription["output"]["transcription"][:100]
+            )
+
+        except Exception as e:
+            self.logger.error(
+                "|Transcription| Transcription unsuccessful: "
+                + str(e)
+                + " "
+                + str(fname)
+            )
+
+        return str(transcription["output"]["transcription"])
 
     async def caption_image(self, fname, writeTags):
-        self.logger.info(f"|Caption Image| Generating caption for: {str(fname)}")
+        self.logger.info(
+            f"|Caption Image| Generating caption for: '{str(fname)}'")
         try:
             payload = (
                 '{"input": {"image":"'
@@ -462,9 +460,9 @@ class ProcessMedia:
                 + str(fname)
                 + '" ,"reward": "clips_grammar"}}'
             )
-            self.logger.debug(f"|Caption Image| Payload: {str(payload)}")
+            self.logger.debug(f"|Caption Image| Payload: '{str(payload)}'")
             self.logger.debug(
-                f"| Caption Image | Image server: {str(fm_config.CAPTION_API_URL)}"
+                f"| Caption Image | Image server: '{str(fm_config.CAPTION_API_URL)}'"
             )
 
             r = requests.post(
@@ -475,7 +473,7 @@ class ProcessMedia:
 
             caption = json.loads(r.decode("utf-8"))
             self.logger.info(
-                f"|Caption Image| Caption generated for file {str(fname)}: {caption['output']}"
+                f"|Caption Image| Caption generated for file '{str(fname)}': '{caption['output']}'"
             )
             if writeTags:
                 command = (
@@ -491,7 +489,7 @@ class ProcessMedia:
 
         except Exception as e:
             self.logger.error(
-                f"|Caption image| Image captioning unsuccessful: {str(e)} {str(fname)}"
+                f"|Caption image| Image captioning unsuccessful: {str(e)} '{str(fname)}'"
             )
             # resize_with_aspect_ratio(
             #     file_path, max_width=None, max_height=None, format=None
@@ -566,7 +564,8 @@ class ProcessMedia:
             )  # + " -iptc:keywords-='" + concept.name + "' " + " -iptc:keywords+='" + concept.name + "' "
         if len(tags) > 0:
             self.logger.info("|Tag Image| Tags generated: " + tagNames)
-            command = "exiftool -overwrite_original " + tags + " '" + str(fname) + "'"
+            command = "exiftool -overwrite_original " + \
+                tags + " '" + str(fname) + "'"
             res = os.system(command)
             self.logger.debug("|Tag Image| Tags are assigend  " + str(fname))
 
@@ -580,10 +579,12 @@ class ProcessMedia:
 
     async def reverse_geotag(self, fname):
         if self.imgHasGPS(fname):
-            self.logger.info("|Reverse Geocode| Reverse geocoding: " + str(fname))
+            self.logger.info(
+                "|Reverse Geocode| Reverse geocoding: " + str(fname))
             # The output variable stores the output of the  command
             command = "exiftool -c '%.9f' -GPSPosition '" + str(fname) + "'"
-            self.logger.debug("|Reverse Geocode| Extracting GPS info: " + str(command))
+            self.logger.debug(
+                "|Reverse Geocode| Extracting GPS info: " + str(command))
             output = subprocess.getoutput(command)
             command = ""
             try:
@@ -616,12 +617,14 @@ class ProcessMedia:
                         + "'"
                     )
                 command = (
-                    "exiftool -overwrite_original " + command + " '" + str(fname) + "'"
+                    "exiftool -overwrite_original " +
+                    command + " '" + str(fname) + "'"
                 )
 
                 res = os.system(command)
                 self.logger.info(
-                    "|Reverse Geocode| Reverse geocoding successfull: " + str(command)
+                    "|Reverse Geocode| Reverse geocoding successfull: " +
+                    str(command)
                 )
 
             except Exception as e:
@@ -695,7 +698,8 @@ class ProcessMedia:
                 )
                 train_dir = os.listdir(fm_config.FACE_CLASSIFIER_TRAIN_DIR)
                 for person in train_dir:
-                    pix = os.listdir(fm_config.FACE_CLASSIFIER_TRAIN_DIR + str(person))
+                    pix = os.listdir(
+                        fm_config.FACE_CLASSIFIER_TRAIN_DIR + str(person))
                     # Loop through each training image for the current person
                     for person_img in pix:
                         # Get the face encodings for the face in each image file
@@ -705,7 +709,8 @@ class ProcessMedia:
                             + "/"
                             + person_img
                         )
-                        face_bounding_boxes = face_recognition.face_locations(face)
+                        face_bounding_boxes = face_recognition.face_locations(
+                            face)
 
                         # If training image contains exactly one face
                         if len(face_bounding_boxes) == 1:
@@ -760,7 +765,8 @@ class ProcessMedia:
                     + str(name[0])
                 )
                 command = (
-                    "exiftool -overwrite_original " + faces + " '" + str(fname) + "'"
+                    "exiftool -overwrite_original " +
+                    faces + " '" + str(fname) + "'"
                 )
                 res = os.system(command)
                 self.logger.info(
@@ -791,10 +797,12 @@ class ProcessMedia:
                 + "'"
             )
             os.system(command)
-            self.logger.info("|Copy to IPTC| Tags copied to IPTC: " + str(fname))
+            self.logger.info(
+                "|Copy to IPTC| Tags copied to IPTC: " + str(fname))
         except Exception as e:
             self.logger.warning(
-                "|Copy to IPTC| Copy tags unsuccessful: " + str(e) + " " + str(fname)
+                "|Copy to IPTC| Copy tags unsuccessful: " +
+                str(e) + " " + str(fname)
             )
 
     def find_FileModifyDate(self, fname):
@@ -805,7 +813,7 @@ class ProcessMedia:
         )
 
         command_output = command_output.replace("\\n", "")
-        date = command_output[len(command_output) - 8 : len(command_output) - 1]
+        date = command_output[len(command_output) - 8: len(command_output) - 1]
         return date
 
     def create_json(self, fname):
@@ -818,7 +826,8 @@ class ProcessMedia:
             + ".json"
         )
         os.system(command)
-        f = str(os.path.dirname(fname)) + "/" + os.path.basename(fname) + ".json"
+        f = str(os.path.dirname(fname)) + "/" + \
+            os.path.basename(fname) + ".json"
         f = fm_config.JSON_FOLDER + os.path.basename(fname) + ".json"
         # print(f)
         os.chmod(f, 0o777)
@@ -828,53 +837,14 @@ class ProcessMedia:
         command = ""
         # Add document to search engine
         command = (
-            fm_config.SOLR_POST_EXE + " -c " + collection + " '" + str(fname) + "'"
+            fm_config.SOLR_POST_EXE + " -c " +
+            collection + " '" + str(fname) + "'"
         )
         os.system(command)
 
     def delete_media_from_index(self, collection, fname):
         command = ""
         # http://localhost:8983/solr/MyCore/update?stream.body=
-
-    # <delete><query>Id:298253</query></delete>&commit=true
-
-    async def move_file2(self, file_path, dest_base_folder):
-        import os
-        import datetime
-
-        # get the date the picture was taken
-        date_taken = datetime.datetime.fromtimestamp(os.path.getctime(file_path))
-
-        # create the destination folder if it doesn't exist
-        year = str(date_taken.year)
-        month = str(date_taken.month).zfill(2)
-        dest_folder = os.path.join(dest_base_folder, year, month)
-        if not os.path.exists(dest_folder):
-            os.makedirs(dest_folder)
-            os.chmod(dest_folder, 0o777)
-
-        # move the file to the destination folder and update the file's timestamp
-        dest_path = os.path.join(dest_folder, os.path.basename(file_path))
-        os.rename(file_path, dest_path)
-        # os.chmod(dest_path, 0o777)
-        os.utime(dest_path, None)
-        self.logger.info(f"|Move File| Moved {file_path} to {dest_path}")
-
-    # function that moves file to a directory based on its creation date
-    async def move_fileOLD(self, file_path, destination):
-        from datetime import datetime
-        from pathlib import Path
-
-        # code to get file's creation date
-        # code to create directory based on creation date, if it doesn't exist
-        # code to move file to the directory
-        creation_time = os.path.getctime(file_path)
-        creation_date = datetime.fromtimestamp(creation_time).strftime("%Y-%m")
-        dst_path = Path(destination) / creation_date
-        dst_path.mkdir(parents=True, exist_ok=True)
-        dst_path = dst_path / Path(file_path).name
-        os.rename(file_path, dst_path)
-        self.logger.info(f"|Move File| Moved {file_path} to {dst_path}")
 
     async def move_file(self, fname, dest_folder):
         # os.chmod(fname, 0o777)
@@ -915,7 +885,8 @@ class ProcessMedia:
                 face_locations = face_recognition.face_locations(imageArray)
 
                 self.logger.info(
-                    "I found {} face(s) in {}".format(len(face_locations), str(fname))
+                    "I found {} face(s) in {}".format(
+                        len(face_locations), str(fname))
                 )
 
                 for face_location in face_locations:

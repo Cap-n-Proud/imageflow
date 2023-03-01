@@ -9,7 +9,7 @@ IMAGES_WATCH_DIRECTORY = "/mnt/Photos/000-InstantUpload/"
 WATCH_DELAY = 3
 
 # Check The WATCH_DIRECTORY and its children
-WATCH_RECURSIVELY = False
+WATCH_RECURSIVELY = True
 
 # whether to watch for directory events
 # DO_WATCH_DIRECTORIES = True
@@ -44,15 +44,17 @@ DOC_EXTENSIONS = (
 # EXCEPTION_PATTERN = ["EXCEPTION", "FATAL", "ERROR"]
 
 LOG_NAME = "filemaster.log"
-LOG_FILEPATH = "/mnt/imageflow/"
+LOG_FILEPATH = "/mnt/Apps_Config/imageflow/"
 LOG_LEVEL = "INFO"
 SCREENSHOT_DEST_FOLDER = "/mnt/Photos/001-Screenshots/"
 IMAGE_DEST_DIRECTORY = "/mnt/Photos/005-PhotoBook/"
 VIDEO_DEST_FOLDER = "/mnt/Photos/010-Videos/"
-UNKNOWN_FACE_FOLDER = "/mnt/imageflow/unknown_faces/"
+UNKNOWN_FACE_FOLDER = "/mnt/Apps/Config/imageflow/unknown_faces/"
 
-SECRETS_PATH = "/app/imageflow/imageflow_secrets/"
-CONFIG_PATH = "/app/imageflow/config/"
+SECRETS_PATH = "/home/nuc/"
+# CONFIG_PATH = "/mnt/Apps_Config/imageflow/config/"
+CONFIG_PATH = "/mnt/Software/200-Apps/imageflow/config/"
+
 
 UNKNOWN_FACE_NAME = "no_person"
 FACE_DISTANCE = 0.5
@@ -84,16 +86,6 @@ COPY_TAGS_TO_IPTC = True
 ID_OBJ = True
 MOVE_FILE = True
 
-CAPTION_IMAGE = False
-TAG_IMAGE = False
-REVERSE_GEOTAG = False
-CLASSIFY_FACES = False
-OCR_IMAGE = False
-COPY_TAGS_TO_IPTC = True
-ID_OBJ = False
-MOVE_FILE = False
-
-
 CAPTION_VIDEO = True
 REVERSE_GEOTAG_VIDEO = True
 CLASSIFY_FACES_VIDEO = True
@@ -101,15 +93,19 @@ OCR_VIDEO = True
 ID_OBJ_VIDEO = True
 MOVE_FILE_VIDEO = False
 TRANSCRIBE_VIDEO = True
+
+
+
+
 # --------------------------- Image processor config ---------------------------
 FACE_TRAINING_DIR = "/mnt/Photos/005-PhotoBook/000-knownfaces/"
 REVERSE_GEO_URL = "https://api.opencagedata.com/geocode/v1/json?q="
 CROP_FACE_SOURCE_DIR = "/mnt/Photos/005-PhotoBook/2022/"
 CROP_FACE_DEST_DIR = "/mnt/Photos/000-Process/faces/"
-FACE_CLASSIFIER_FILE = "/mnt/imageflow/faceClassifier.pkl"
+FACE_CLASSIFIER_FILE = "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 # FACE_CLASSIFIER_DIR = "/mnt/Software/200-Apps/ZZZ/filemaster/"
 FACE_CLASSIFIER_TRAIN_DIR = "/mnt/Photos/005-PhotoBook/000-knownfaces/"
-JSON_FOLDER = "/mnt/imageflow/json/"
+JSON_FOLDER = "/mnt/Apps_Config/imageflow/json/"
 
 CAPTION_API_URL = "http://192.168.1.163:5000/predictions"
 CAPTION_API_URL = "http://192.168.1.121:9111/predictions"
@@ -139,7 +135,13 @@ IMG_OCR_LANG = "en"
 OBJ_ID_HEADER = {"content-type": "application/json"}
 OBJ_ID_API_URL = "http://192.168.1.121:9998/predictions"
 OBJ_ID__MODEL_NAME = "yolox-x"
-OBJ_ID__MIN_CONFIDENCE = 0.5
+OBJ_ID__MIN_CONFIDENCE = 0.6
+
+
+RAMDISK_DIR = "/mnt/Photos/001-Process/tmp/"
+RAMDISK_SIZE_MB = 512
+SAVING_FRAMES_PER_SECOND = 1 / 5
+SCENE_DETECT_THRESHOLD = 2
 
 
 # --------------------------- Video Processor --------------------------
@@ -147,7 +149,8 @@ OBJ_ID__MIN_CONFIDENCE = 0.5
 TRANSCRIBE_HEADER = {"content-type": "application/json"}
 TRANSCRIBE_API_URL = "http://192.168.1.121:9996/predictions"
 TRANSCRIBE__MODEL_NAME = "large-v2"
-# TRANSCRIBE__MODEL_NAME = "tiny"
+TRANSCRIBE__MODEL_NAME = "small"
+#["tiny", "base", "small", "medium", "large-v1", "large-v2"],
 
 # NOT IMPLEMNETED
 TRANSCRIBE_MIN_CONFIDENCE = 0.5
@@ -156,11 +159,10 @@ TRANSCRIBE_MIN_CONFIDENCE = 0.5
 
 
 RAMDISK_DIR = "/mnt/Photos/001-Process/tmp/"
-# RAMDISK_DIR = "/tmp/"
-RAMDISK_SIZE_MB = 512
+RAMDISK_SIZE_MB = 100
 SAVING_FRAMES_PER_SECOND = 1 / 5
-SCENE_DETECT_THRESHOLD = 2
-
+SAMPLING_STRATEGY = ["0.1","0.5","0.9"]
+MIN_SCENES=2
 # --------------------------- Solr config ---------------------------
 SOLR_POST_EXE = "/root/solr-8.11.1/bin/post"
 SOLR_DOC_COLLECTION = "documents"
