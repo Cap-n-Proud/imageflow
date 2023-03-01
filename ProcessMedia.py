@@ -252,7 +252,7 @@ class ProcessMedia:
         # If there are no new keywords to add, we don't need to do anything
         # if not keywords:
         #     return
-
+        ffmpeg_cmd = ""
         # Add the new keywords to the metadata dictionary
         all_keywords = existing_keywords.union(set(keywords))
         metadata["keywords"] = ",".join(all_keywords)
@@ -273,20 +273,24 @@ class ProcessMedia:
 
         new_file = f"{pathlib.Path(video_file_path).parent}/{pathlib.Path(video_file_path).stem}_new{pathlib.Path(video_file_path).suffix}"
         ffmpeg_cmd += f'-c copy "{new_file}"'
-        self.logger.info(
+        self.logger.debug(
             f"|write_keywords_metadata_to_video_file|: {ffmpeg_cmd}")
         try:
             command_run = subprocess.call(ffmpeg_cmd, shell=True)
             if command_run == 0:
-                print("Its worked!!")
+                self.logger.info(
+                    f"|write_keywords_metadata_to_video_file| keywords successfully written: {ffmpeg_cmd}")
                 os.remove(video_file_path)
                 os.rename(f"{new_file}", video_file_path)
             else:
-                print("There was a problem, so do something else")
+                self.logger.error(
+                    f"|write_keywords_metadata_to_video_file| The following command generated an error: {ffmpeg_cmd}")
+
             # If everything worked correctly, we can delete the old file and rename the new one
 
         except Exception as e:
-            print("ERROR!!!")
+            self.logger.error(
+                f"|write_keywords_metadata_to_video_file| Error: {e}")
 
     async def writeTagsMedia(self, fname, KW=None, caption=None, description=None):
 
@@ -395,7 +399,7 @@ class ProcessMedia:
 
             ocr = json.loads(r.decode("utf-8"))
             # self.logger.info(f"|OCR Image| Text: {str(ocr['full_text'])}")
-
+            self.logger.info(f'|OCR Image| successfull: {str(ocr["full_text"])}')'
             if writeTags:
                 command = (
                     "exiftool -overwrite_original -Caption-Abstract='"
@@ -423,16 +427,27 @@ class ProcessMedia:
 
     async def transcribe(self, fname):
         # -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/audio.aac","model": "large-v2"}}'
+
+        # Check file size if too big, we use a smaller models to avoid timeout
+        fileSize = os.path.getsize(fname) / 1048576
+        print(os.path.getsize(fname))
+        if fileSize > fm_config.TRASCRIBE_MODEL_SIZE_THRESHOLD:
+            model = "small"
+        else:
+            model = fm_config.TRANSCRIBE__MODEL_NAME
+
         self.logger.info(
-            f"|Transcribe| Generating transcription for: '{str(fname)}'. Model: '{fm_config.TRANSCRIBE__MODEL_NAME}'")
+            f"|Transcribe| Generating transcription for: '{str(fname)}' ({round(fileSize,2)} MB). Model: '{model}'")
 
         try:
+            # payload = f'{"input": {"audio": "{str(fm_config.IMAGES_SERVER_URL)}{str(fname)}", "model": "{str(model)}"}}'
+
             payload = (
                 '{"input": {"audio":"'
                 + str(fm_config.IMAGES_SERVER_URL)
                 + str(fname)
                 + '" ,"model":"'
-                + str(fm_config.TRANSCRIBE__MODEL_NAME)
+                + str(model)
                 + '"}}'
             )
             self.logger.debug(f"|Transcribe| Payload: '{str(payload)}'")
@@ -444,6 +459,7 @@ class ProcessMedia:
                 fm_config.TRANSCRIBE_API_URL,
                 headers=fm_config.TRANSCRIBE_HEADER,
                 data=payload,
+                timeout=60 * 60 * 3
             ).text
 
             self.logger.debug(

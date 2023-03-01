@@ -141,27 +141,23 @@ RAMDISK_DIR = "/mnt/Photos/001-Process/tmp/"
 RAMDISK_SIZE_MB = 512
 SAVING_FRAMES_PER_SECOND = 1 / 5
 SCENE_DETECT_THRESHOLD = 2
-
+SAMPLING_STRATEGY = ["0.1", "0.5", "0.9"]
+MIN_SCENES = 2
 
 # --------------------------- Video Processor --------------------------
 
 TRANSCRIBE_HEADER = {"content-type": "application/json"}
 TRANSCRIBE_API_URL = "http://192.168.1.121:9996/predictions"
 TRANSCRIBE__MODEL_NAME = "large-v2"
-TRANSCRIBE__MODEL_NAME = "small"
+TRANSCRIBE__MODEL_NAME = "medium"
 #["tiny", "base", "small", "medium", "large-v1", "large-v2"],
 
+TRASCRIBE_MODEL_SIZE_THRESHOLD = 20
 # NOT IMPLEMNETED
 TRANSCRIBE_MIN_CONFIDENCE = 0.5
 
 # curl http://192.168.1.121:9996/predictions -X POST -H "Content-Type: application/json"  -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/output-audio.aac","model": "large-v2"}}' > pizza2.json
 
-
-RAMDISK_DIR = "/mnt/Photos/001-Process/tmp/"
-RAMDISK_SIZE_MB = 100
-SAVING_FRAMES_PER_SECOND = 1 / 5
-SAMPLING_STRATEGY = ["0.1", "0.5", "0.9"]
-MIN_SCENES = 2
 # --------------------------- Solr config ---------------------------
 SOLR_POST_EXE = "/root/solr-8.11.1/bin/post"
 SOLR_DOC_COLLECTION = "documents"

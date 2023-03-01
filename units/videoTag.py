@@ -1,4 +1,6 @@
 
+import urllib.request
+
 fps = 30
 frame_count = 30000
 sampling_strategy = ["0.1", "0.5", "0.9"]
@@ -19,3 +21,9 @@ sampling_frames = ','.join(map("{:,}".format, result))
 
 print(
     f"frames per second: {fps}, frame count: {frame_count}, sampling frames: {a.join(sampling_frames.split(','))}")
+
+file = urllib.request.urlopen(
+    "http://192.168.1.121:9999/mnt/Photos/001-Process/episode436_opt_out_cbdc.mp3")
+print(file.length / 1048576)
+
+print(f"{3.1454} :2f")
