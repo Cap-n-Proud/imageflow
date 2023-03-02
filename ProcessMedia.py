@@ -399,7 +399,8 @@ class ProcessMedia:
 
             ocr = json.loads(r.decode("utf-8"))
             # self.logger.info(f"|OCR Image| Text: {str(ocr['full_text'])}")
-            self.logger.info(f'|OCR Image| successfull: {str(ocr["full_text"])}')'
+            self.logger.info(
+                f'|OCR Image| successfull: {str(ocr["full_text"])}')
             if writeTags:
                 command = (
                     "exiftool -overwrite_original -Caption-Abstract='"

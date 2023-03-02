@@ -166,11 +166,11 @@ async def process_media(imagesQueue, processMedia, logger, args):
 
             kw = faces + objects
             d = ""
-            o = ""
+            o = "|OCR|: "
+
             for ele in caption:
                 d += ". " + ele
             for ele in ocr:
-                print(ele)
                 if ele != "None":
                     o += ". " + ele
 

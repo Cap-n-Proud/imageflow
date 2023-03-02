@@ -26,4 +26,4 @@ file = urllib.request.urlopen(
     "http://192.168.1.121:9999/mnt/Photos/001-Process/episode436_opt_out_cbdc.mp3")
 print(file.length / 1048576)
 
-print(f"{3.1454} :2f")
+print(f"{round(3.1454, 2)})
