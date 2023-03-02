@@ -96,9 +96,13 @@ async def process_media(imagesQueue, processMedia, logger, args):
         file_path = str(Path(args.imagesWatchDirectory) / file)
 
         await asyncio.sleep(args.watchDelay)
-        logger.info("Processing: " + str(file_path))
+        logger.info(f"|Workflow| Processing: {str(file_path)}")
+
         stop_timer.reset()
         stop_timer.start()
+
+        # IMAGE WORKFLOW
+        # TO DO: remove file tagging from each function adn add a separate one like in teh video wrokflow
         if file.lower().endswith(args.imageExtensions):
             if args.captionImage:
                 await processMedia.caption_image(file_path, True)
@@ -119,11 +123,11 @@ async def process_media(imagesQueue, processMedia, logger, args):
 
         # VIDEO WORKFLOW
         if file.lower().endswith(args.videoExtensions):
-            # BELOW DISABLED FOR TESTING
-            await processMedia.preProcessVideo(file_path)
             tmpFName = Path(file_path).stem
             tmpPath = fm_config.RAMDISK_DIR + str(tmpFName)
-            logger.info("Temp path:" + str(tmpPath))
+            logger.debug(
+                f"|preProcessVideo| File: {file_path}. Temp path: {str(tmpPath)}")
+            await processMedia.preProcessVideo(file_path)
 
             caption = []
             faces = []
@@ -132,29 +136,52 @@ async def process_media(imagesQueue, processMedia, logger, args):
 
             for file in sorted(os.listdir(tmpPath), key=str.lower):
                 file = os.path.abspath(os.path.join(Path(tmpPath), file))
-                logger.info(f"Processing: {file}")
+                logger.info(f"|preProcessVideo| Processing: {file}")
                 if file.lower().endswith(args.imageExtensions):
+                    # TODO: add_to_list_if_not_exist replace with list(set(...))
                     if args.captionVideo:
-                        # Caption all the scene images
-                        c = str(await processMedia.caption_image(file, False))
-                        caption.append(c)
-                    if args.classifyFacesVideo:
-                        # Identify faces
-                        f = str(await processMedia.classify_faces(file, False))
-                        faces = add_to_list_if_not_exist(faces, f)
-                    if args.ocrVideo:
-                        # OCR texts in scene
-                        o = str(await processMedia.ocr_image(file, False))
-                        ocr.append(o)
-                    if args.idObjVideo:
-                        # Identfy objects
-                        ob = str(await processMedia.id_obj_image(file, False))
-                        objects = add_to_list_if_not_exist(objects, ob)
+                        try:
+                            # Caption all the scene images
+                            c = str(await processMedia.caption_image(file, False))
+                            caption.append(c)
+                        except Exception as e:
+                            logger.error(
+                                f"|captionVideo| Error: {e}")
 
-                    # Transcribe audio
+                    if args.classifyFacesVideo:
+                        try:
+                            # Identify faces
+                            f = str(await processMedia.classify_faces(file, False))
+                            faces = add_to_list_if_not_exist(faces, f)
+                        except Exception as e:
+                            logger.error(
+                                f"|classifyFacesVideo| Error: {e}")
+
+                    if args.ocrVideo:
+                        try:
+                            # OCR texts in scene
+                            o = str(await processMedia.ocr_image(file, False))
+                            ocr.append(o)
+                        except Exception as e:
+                            logger.error(
+                                f"|ocrVideo| Error: {e}")
+
+                    if args.idObjVideo:
+                        try:  # Identfy objects
+                            ob = str(await processMedia.id_obj_image(file, False))
+                            objects = add_to_list_if_not_exist(objects, ob)
+                        except Exception as e:
+                            logger.error(
+                                f"|idObjVideo| Error: {e}")
+
+                # Transcribe audio
                 if file.lower().endswith(args.audioExtensions) and args.transcribeVideo:
-                    t = " |Transcribe|: "
-                    t += str(await processMedia.transcribe(file))
+                    try:
+                        t = "\n |Transcribe|: "
+                        t += str(await processMedia.transcribe(file))
+                    except Exception as e:
+                        logger.error(
+                            f"|Transcribe| Error: {e}")
 
             processMedia.removeTempDirectory(file_path)
 
@@ -166,7 +193,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
 
             kw = faces + objects
             d = ""
-            o = "|OCR|: "
+            o = "\n |OCR|: "
 
             for ele in caption:
                 d += ". " + ele
@@ -175,9 +202,13 @@ async def process_media(imagesQueue, processMedia, logger, args):
                     o += ". " + ele
 
             description = d + o + t
-            await processMedia.write_keywords_metadata_to_video_file(
-                video_file_path=file_path, keywords=kw, description=description
-            )
+            try:
+                await processMedia.write_keywords_metadata_to_video_file(
+                    video_file_path=file_path, keywords=kw, description=description
+                )
+            except Exception as e:
+                logger.error(
+                    f"|write_keywords_metadata_to_video_file| Error: {e}")
             if args.moveFileVideo:
                 await processMedia.move_file(file_path, args.videoDestinationFolder)
 
@@ -189,7 +220,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
         )
 
 
-async def recursive_listdir(path, recursive=False):
+async def recursive_listdir(path, recursive=True):
     if not recursive:
         return os.listdir(path)
     else:

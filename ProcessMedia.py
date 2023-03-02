@@ -51,7 +51,7 @@ class ProcessMedia:
         # print(s.REVERSE_GEO_API)
         pass
 
-    def createTempDirectory(self, fname):
+    async def createTempDirectory(self, fname):
 
         directory = os.path.splitext(os.path.basename(fname))[0]
         directory = directory.replace("'", "")
@@ -62,7 +62,7 @@ class ProcessMedia:
         command = f"mkdir '{fm_config.RAMDISK_DIR}{directory}'"
         os.system(command)
         self.logger.debug(
-            f"Directory created at '{fm_config.RAMDISK_DIR}{directory}'")
+            f"Temp directory created at '{fm_config.RAMDISK_DIR}{directory}'")
 
     def removeTempDirectory(self, fname):
         directory = os.path.splitext(os.path.basename(fname))[0]
@@ -101,7 +101,7 @@ class ProcessMedia:
         shutil.rmtree(directory)
         print(f"Ramdisk content at {directory} cleared")
 
-    def split_video_into_scenes(self, video_path, output_dir=None, threshold=1):
+    async def split_video_into_scenes(self, video_path, output_dir=None, threshold=1):
         # Open our video, create a scene manager, and add a detector.
         self.logger.debug(
             f"Finding scenes for {video_path}, threshold {threshold}")
@@ -139,15 +139,19 @@ class ProcessMedia:
                 frame_id = int(frame_count * float(sample))
                 video.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
                 ret, frame = video.read()
+                self.logger.debug(
+                    f"Writing screenshot: {frame_id} in {output_dir}/screenshot{screenshot_number}.jpg"
+                )
+
                 cv2.imwrite(
                     f"{output_dir}/screenshot{screenshot_number}.jpg", frame)
                 screenshot_number += 1
 
-    def extract_audio(self, fname, tmp_folder):
+    async def extract_audio(self, fname, tmp_folder):
         filename, file_extension = os.path.splitext(os.path.basename(fname))
         filename = filename.replace("'", "")
 
-        command = f"ffmpeg -y -i '{fname}' -vn -acodec copy '{tmp_folder}{filename}/audio.aac'"
+        command = f'ffmpeg -y -i "{fname}" -vn -acodec copy "{tmp_folder}{filename}/audio.aac"'
         self.logger.debug(f"|extract_audio|: {command}")
         subprocess.call(command, shell=True)
 
@@ -196,7 +200,7 @@ class ProcessMedia:
         # Encode the resized image as a JPEG bytes object
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
         _, img_bytes = cv2.imencode(".jpg", img_resized, encode_param)
-        self.logger.info(
+        self.logger.debug(
             "|Tag Image| Image resized: "
             + str(image_path)
             + " "
@@ -285,8 +289,6 @@ class ProcessMedia:
             else:
                 self.logger.error(
                     f"|write_keywords_metadata_to_video_file| The following command generated an error: {ffmpeg_cmd}")
-
-            # If everything worked correctly, we can delete the old file and rename the new one
 
         except Exception as e:
             self.logger.error(
@@ -417,14 +419,14 @@ class ProcessMedia:
             self.logger.error(f"|OCR Image| ERROR: {str(e)}")
 
     async def preProcessVideo(self, fname):
-        self.createTempDirectory(fname)
-        self.split_video_into_scenes(
+        await self.createTempDirectory(fname)
+        await self.split_video_into_scenes(
             fname,
             threshold=fm_config.SCENE_DETECT_THRESHOLD,
             output_dir=fm_config.RAMDISK_DIR,
         )
 
-        self.extract_audio(fname, fm_config.RAMDISK_DIR)
+        await self.extract_audio(fname, fm_config.RAMDISK_DIR)
 
     async def transcribe(self, fname):
         # -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/audio.aac","model": "large-v2"}}'
@@ -441,7 +443,10 @@ class ProcessMedia:
             f"|Transcribe| Generating transcription for: '{str(fname)}' ({round(fileSize,2)} MB). Model: '{model}'")
 
         try:
-            # payload = f'{"input": {"audio": "{str(fm_config.IMAGES_SERVER_URL)}{str(fname)}", "model": "{str(model)}"}}'
+
+            payload = (
+                f'{{"input": {{"audio":"{fm_config.IMAGES_SERVER_URL}{fname}", "model":"{model}"}}}}'
+            )
 
             payload = (
                 '{"input": {"audio":"'
@@ -468,29 +473,22 @@ class ProcessMedia:
 
             transcription = json.loads(r)
             # transcription = json.loads(r.decode("utf-8"))
-            # self.logger.info(f"|Transcribe| Transcription generated for file {str(fname)}: {transcription["output"]["transcription"]})
             self.logger.info(
-                "|Transcribe| Transcription generated for file: "
-                + str(fname)
-                + ": "
-                + transcription["output"]["transcription"][:100]
-            )
+                f"|Transcribe| Transcription generated for file: {fname}: {transcription['output']['transcription'][:100]}")
 
         except Exception as e:
             self.logger.error(
-                "|Transcription| Transcription unsuccessful: "
-                + str(e)
-                + " "
-                + str(fname)
+                f"|Transcription| Transcription unsuccessful: {e} {fname}")
+
             )
 
         return str(transcription["output"]["transcription"])
 
     async def caption_image(self, fname, writeTags):
-        self.logger.info(
+        self.logger.debug(
             f"|Caption Image| Generating caption for: '{str(fname)}'")
         try:
-            payload = (
+            payload=(
                 '{"input": {"image":"'
                 + str(fm_config.IMAGES_SERVER_URL)
                 + str(fname)
@@ -501,18 +499,18 @@ class ProcessMedia:
                 f"| Caption Image | Image server: '{str(fm_config.CAPTION_API_URL)}'"
             )
 
-            r = requests.post(
+            r=requests.post(
                 fm_config.CAPTION_API_URL,
-                headers=fm_config.IMAGE_CAPTION_HEADER,
-                data=payload,
+                headers = fm_config.IMAGE_CAPTION_HEADER,
+                data = payload,
             ).content
 
-            caption = json.loads(r.decode("utf-8"))
+            caption=json.loads(r.decode("utf-8"))
             self.logger.info(
                 f"|Caption Image| Caption generated for file '{str(fname)}': '{caption['output']}'"
             )
             if writeTags:
-                command = (
+                command=(
                     "exiftool -overwrite_original -Caption-Abstract='"
                     + str(caption["output"])
                     + "' '"
@@ -532,7 +530,7 @@ class ProcessMedia:
             # ):
 
     async def tag_image(self, fname):
-        self.logger.info("|Tag Image| Image tagging started: " + str(fname))
+        self.logger.debug("|Tag Image| Image tagging started: " + str(fname))
         # with open(fname, "rb") as f:
         #     file_bytes = f.read()
         try:
@@ -542,7 +540,7 @@ class ProcessMedia:
         # )
 
         except:
-            self.logger.warning("An exception occurred: " + str(fname))
+            self.logger.error("An exception occurred: " + str(fname))
             return
         # with open(fname, "rb") as f:
         #     file_bytes = f.read()
@@ -585,8 +583,6 @@ class ProcessMedia:
         tagCount = 0
         # self.logger.info("Predicted concepts:")
         for concept in output.data.concepts:
-            # self.logger.info("%s %.2f" % (concept.name, concept.value))
-            # self.logger.info(concept.name)
             tagCount += 1
             tagNames = tagNames + concept.name + " "
             tags = (
@@ -597,7 +593,7 @@ class ProcessMedia:
                 + " -keywords+='"
                 + concept.name
                 + "' "
-            )  # + " -iptc:keywords-='" + concept.name + "' " + " -iptc:keywords+='" + concept.name + "' "
+            )
         if len(tags) > 0:
             self.logger.info("|Tag Image| Tags generated: " + tagNames)
             command = "exiftool -overwrite_original " + \
@@ -609,7 +605,7 @@ class ProcessMedia:
 
     async def reverse_geotag(self, fname):
         if self.imgHasGPS(fname):
-            self.logger.info(
+            self.logger.debug(
                 "|Reverse Geocode| Reverse geocoding: " + str(fname))
             # The output variable stores the output of the  command
             command = "exiftool -c '%.9f' -GPSPosition '" + str(fname) + "'"
@@ -635,7 +631,6 @@ class ProcessMedia:
 
                 data = json.loads(response.text)
                 reverse_geo = data["results"][0]["components"]
-                # print(reverse_geo["postcode"])
                 for key, value in reverse_geo.items():
                     command = (
                         command
@@ -658,7 +653,7 @@ class ProcessMedia:
                 )
 
             except Exception as e:
-                self.logger.warning(
+                self.logger.error(
                     "|Reverse Geocode| Reverse geocoding unsuccessful: "
                     + str(e)
                     + " "
@@ -667,7 +662,7 @@ class ProcessMedia:
                 command = " -keywords-=no_GPS_tag  -keywords+=no_GPS_tag"
                 res = os.system(command)
         else:
-            self.logger.info("NO GPS info found in image")
+            self.logger.info("|Reverse Geocode| NO GPS info found in image: " + str(fname))
 
     def saveFaces(image):
         # saves all the faces in an image
@@ -827,7 +822,7 @@ class ProcessMedia:
             self.logger.info(
                 "|Copy to IPTC| Tags copied to IPTC: " + str(fname))
         except Exception as e:
-            self.logger.warning(
+            self.logger.error(
                 "|Copy to IPTC| Copy tags unsuccessful: " +
                 str(e) + " " + str(fname)
             )

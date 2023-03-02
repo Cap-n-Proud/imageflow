@@ -8,6 +8,9 @@ IMAGES_WATCH_DIRECTORY = "/mnt/Photos/000-InstantUpload/"
 # Delay Between Watch Cycles In Seconds
 WATCH_DELAY = 3
 
+# TO BE IMPLEMENTED: TO BE ABLE TO RESUME FILES
+# MIN_AGE = 300
+
 # Check The WATCH_DIRECTORY and its children
 WATCH_RECURSIVELY = True
 
@@ -85,7 +88,7 @@ CLASSIFY_FACES = True
 OCR_IMAGE = True
 COPY_TAGS_TO_IPTC = True
 ID_OBJ = True
-MOVE_FILE = True
+MOVE_FILE = False
 
 CAPTION_VIDEO = True
 REVERSE_GEOTAG_VIDEO = True
