@@ -159,8 +159,8 @@ async def process_media(imagesQueue, processMedia, logger, args):
                     if args.classifyFacesVideo:
                         try:
                             # Identify faces
-                            f = (await processMedia.classify_faces(file, False))
-                            faces = list(set(f))
+                            f = str(await processMedia.classify_faces(file, False))
+                            faces = add_to_list_if_not_exist(faces, f)
                         except Exception as e:
                             logger.error(
                                 f"|classifyFacesVideo| Error: {e}")
@@ -168,7 +168,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                     if args.ocrVideo:
                         try:
                             # OCR texts in scene
-                            o = (await processMedia.ocr_image(file, False, returnTag=False))
+                            o = str(await processMedia.ocr_image(file, False, returnTag=False))
                             ocr.append(o)
                         except Exception as e:
                             logger.error(
@@ -176,8 +176,8 @@ async def process_media(imagesQueue, processMedia, logger, args):
 
                     if args.idObjVideo:
                         try:  # Identfy objects
-                            ob = (await processMedia.id_obj_image(file, False, returnTag=False))
-                            objects = list(set(ob))
+                            ob = str(await processMedia.id_obj_image(file, False, returnTag=False))
+                            objects = add_to_list_if_not_exist(objects, ob)
                         except Exception as e:
                             logger.error(
                                 f"|idObjVideo| Error: {e}")
@@ -212,7 +212,6 @@ async def process_media(imagesQueue, processMedia, logger, args):
             d = ""
             o = ""
 
-            caption
             for ele in caption:
                 d += ". " + ele
             for ele in ocr:

@@ -5,7 +5,7 @@ import openai
 
 
 # Set up OpenAI API credentials
-openai.api_key = "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"
+openai.api_key = "API"
 
 response = openai.Completion.create(
     model="text-davinci-003",
