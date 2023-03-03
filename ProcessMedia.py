@@ -30,15 +30,18 @@ from scenedetect import open_video, SceneManager, split_video_ffmpeg
 from scenedetect.detectors import ContentDetector, AdaptiveDetector
 from scenedetect.video_splitter import split_video_ffmpeg
 from scenedetect.scene_manager import save_images
-
-ProcessMedia_version = "4.0"
+import numpy as np
+from sklearn.cluster import KMeans
+from PIL import Image
+import webcolors
+ProcessMedia_version = "4.1"
 
 
 class ProcessMedia:
     logger = None
 
     async def info(self):
-        print(ProcessMedia_version)
+        pass
 
     def __init__(self, args):
         ProcessMedia.logger = logger
@@ -47,8 +50,6 @@ class ProcessMedia:
         import s
 
         self.s = s
-
-        # print(s.REVERSE_GEO_API)
         pass
 
     async def createTempDirectory(self, fname):
@@ -106,6 +107,7 @@ class ProcessMedia:
         self.logger.debug(
             f"Finding scenes for {video_path}, threshold {threshold}")
         video = open_video(video_path)
+
         scene_manager = SceneManager()
         scene_manager.add_detector(
             AdaptiveDetector(adaptive_threshold=threshold))
@@ -154,6 +156,215 @@ class ProcessMedia:
         command = f'ffmpeg -y -i "{fname}" -vn -acodec copy "{tmp_folder}{filename}/audio.aac"'
         self.logger.debug(f"|extract_audio|: {command}")
         subprocess.call(command, shell=True)
+
+    # Define the list of complex color names and their simplified equivalents
+
+    COLORS = {
+        "aliceblue": "light blue",
+        "antiquewhite": "off-white",
+        "aqua": "cyan",
+        "aquamarine": "light green",
+        "azure": "light blue",
+        "beige": "tan",
+        "bisque": "orange",
+        "black": "black",
+        "blanchedalmond": "tan",
+        "blue": "blue",
+        "blueviolet": "purple",
+        "brown": "brown",
+        "burlywood": "tan",
+        "cadetblue": "blue",
+        "chartreuse": "green",
+        "chocolate": "brown",
+        "coral": "orange",
+        "cornflowerblue": "blue",
+        "cornsilk": "off-white",
+        "crimson": "red",
+        "cyan": "cyan",
+        "darkblue": "blue",
+        "darkcyan": "cyan",
+        "darkgoldenrod": "brown",
+        "darkgray": "gray",
+        "darkgrey": "gray",
+        "darkgreen": "green",
+        "darkkhaki": "tan",
+        "darkmagenta": "purple",
+        "darkolivegreen": "green",
+        "darkorange": "orange",
+        "darkorchid": "purple",
+        "darkred": "red",
+        "darksalmon": "pink",
+        "darkseagreen": "green",
+        "darkslateblue": "blue",
+        "darkslategray": "gray",
+        "darkslategrey": "gray",
+        "darkturquoise": "cyan",
+        "darkviolet": "purple",
+        "deeppink": "pink",
+        "deepskyblue": "blue",
+        "dimgray": "gray",
+        "dimgrey": "gray",
+        "dodgerblue": "blue",
+        "firebrick": "red",
+        "floralwhite": "off-white",
+        "forestgreen": "green",
+        "fuchsia": "purple",
+        "gainsboro": "gray",
+        "ghostwhite": "off-white",
+        "gold": "yellow",
+        "goldenrod": "brown",
+        "gray": "gray",
+        "grey": "gray",
+        "green": "green",
+        "greenyellow": "green",
+        "honeydew": "off-white",
+        "hotpink": "pink",
+        "indianred": "red",
+        "indigo": "purple",
+        "ivory": "off-white",
+        "khaki": "tan",
+        "lavender": "purple",
+        "lavenderblush": "pink",
+        "lawngreen": "green",
+        "lemonchiffon": "off-white",
+        "lightblue": "light blue",
+        "lightcoral": "pink",
+        "lightcyan": "light blue",
+        "lightgoldenrodyellow": "yellow",
+        "lightgray": "light gray",
+        "lightgrey": "light gray",
+        "lightgreen": "light green",
+        'lightgoldenrodyellow': 'yellow',
+        'lightgray': 'gray',
+        'lightgreen': 'green',
+        'lightgrey': 'gray',
+        'lightpink': 'pink',
+        'lightsalmon': 'orange',
+        'lightseagreen': 'green',
+        'lightskyblue': 'blue',
+        'lightslategray': 'gray',
+        'lightslategrey': 'gray',
+        'lightsteelblue': 'blue',
+        'lightyellow': 'yellow',
+        'lime': 'green',
+        'limegreen': 'green',
+        'linen': 'beige',
+        'magenta': 'pink',
+        'maroon': 'brown',
+        'mediumaquamarine': 'green',
+        'mediumblue': 'blue',
+        'mediumorchid': 'purple',
+        'mediumpurple': 'purple',
+        'mediumseagreen': 'green',
+        'mediumslateblue': 'blue',
+        'mediumspringgreen': 'green',
+        'mediumturquoise': 'blue',
+        'mediumvioletred': 'red',
+        'midnightblue': 'blue',
+        'mintcream': 'white',
+        'mistyrose': 'pink',
+        'moccasin': 'yellow',
+        'navajowhite': 'beige',
+        'navy': 'blue',
+        'oldlace': 'beige',
+        'olive': 'green',
+        'olivedrab': 'green',
+        'orange': 'orange',
+        'orangered': 'red',
+        'orchid': 'purple',
+        'palegoldenrod': 'yellow',
+        'palegreen': 'green',
+        'paleturquoise': 'blue',
+        'palevioletred': 'red',
+        'papayawhip': 'beige',
+        'peachpuff': 'orange',
+        'peru': 'brown',
+        'pink': 'pink',
+        'plum': 'purple',
+        'powderblue': 'blue',
+        'purple': 'purple',
+        'red': 'red',
+        'rosybrown': 'brown',
+        'royalblue': 'blue',
+        'saddlebrown': 'brown',
+        'salmon': 'orange',
+        'sandybrown': 'orange',
+        'seagreen': 'green',
+        'seashell': 'beige',
+        'sienna': 'brown',
+        'silver': 'gray',
+        'skyblue': 'blue',
+        'slateblue': 'blue',
+        'slategray': 'gray',
+        'slategrey': 'gray',
+        'snow': 'white',
+        'springgreen': 'green',
+        'steelblue': 'blue',
+        'tan': 'brown',
+        'teal': 'green',
+        'thistle': 'purple',
+        'tomato': 'red',
+        'turquoise': 'blue',
+        'violet': 'purple',
+        'wheat': 'beige',
+        'white': 'white',
+        'whitesmoke': 'gray',
+        'yellow': 'yellow',
+        'yellowgreen': 'green'
+
+
+    }
+
+    async def closest_color(self, requested_color):
+        """Maps an RGB tuple to the closest human-friendly color name"""
+        min_colors = {}
+        for key, name in webcolors.CSS3_HEX_TO_NAMES.items():
+            r_c, g_c, b_c = webcolors.hex_to_rgb(key)
+            rd = (r_c - requested_color[0]) ** 2
+            gd = (g_c - requested_color[1]) ** 2
+            bd = (b_c - requested_color[2]) ** 2
+            min_colors[(rd + gd + bd)] = name
+        return min_colors[min(min_colors.keys())]
+
+    async def get_top_colors(self, fname, k=4, n=3):
+        """Finds the top n dominant colors in the input image using K-means clustering"""
+        image = Image.open(fname)
+        # Convert the image to a numpy array
+        pixels = np.array(image)
+        # Reshape the array to a 2D array of pixels
+        pixels = pixels.reshape(-1, 3)
+        # Apply K-means clustering to find the dominant colors
+        kmeans = KMeans(n_clusters=k, n_init='auto').fit(pixels)
+        # Get the colors of the cluster centers
+        colors = kmeans.cluster_centers_
+        # Get the count of pixels assigned to each cluster
+        labels, counts = np.unique(kmeans.labels_, return_counts=True)
+        # Sort the colors by frequency
+        sorted_colors = colors[np.argsort(-counts)]
+        # Convert the color values to integers and map to color names
+        color_names = [await self.closest_color(np.round(color).astype(int))
+                       for color in sorted_colors]
+
+        # Return the top n colors
+        top_colors = color_names[:n]
+        simpleColors = []
+
+        try:
+            for color in top_colors:
+                simpleColors.append(self.COLORS[color])
+        except:
+            pass
+        top_colors += (simpleColors)
+        top_colors = list(set(top_colors))
+        self.logger.info(
+            "|Top Colors|: "
+            + str(top_colors)
+
+        )
+
+        return top_colors
+
+    # top_colors = get_top_colors(image, k=4, n=5)
 
     def imgHasGPS(self, fname):
 
@@ -217,14 +428,19 @@ class ProcessMedia:
 
     import re
 
-    async def stripIt(self, s):
+    async def stripIt(self, s, allowed_tags=fm_config.ALLOWED_TAGS):
         """
-        Removes all html tags from a string, leaving just the
-        content behind.
+        Removes all HTML tags from a string except the ones specified in
+        the allowed_tags list.
+        Note that this function is not foolproof and may not work correctly in all cases.
+        For example, it may have trouble handling nested tags or tags with unusual formatting.
+        If you need more robust HTML parsing, you may want to consider using
+         a dedicated HTML parsing library like Beautiful Soup.
         """
-        a = re.sub('<.*?>', '', s).replace('"', '').replace("\n", "")
-
-        return re.sub('\s{2,}', ' ', a)
+        pattern = re.compile(
+            r'<(?!/?({}))[^>]*>'.format('|'.join(allowed_tags)))
+        a = pattern.sub('', s).replace('"', '').replace('\n', '')
+        return re.sub(r'\s{2,}', ' ', a)
 
     async def write_keywords_metadata_to_video_file(
         self, video_file_path, keywords, description
@@ -311,7 +527,7 @@ class ProcessMedia:
             f"|Tag Media| {keyCount} keywords added: {keyNames} to '{str(fname)}'"
         )
 
-    async def id_obj_image(self, fname, writeTags):
+    async def id_obj_image(self, fname, writeTags, returnTag=False):
         import ast
 
         self.logger.debug(
@@ -374,12 +590,16 @@ class ProcessMedia:
                     f"|Tag Image| {clsCount} objects identified {tagNames} to {str(fname)}"
                 )
             else:
-                return str(unique_cls)
+                if returnTag:
+                    objects = f'{fm_config.OBJECTS_TAG_OPEN}{str(tagNames)}{fm_config.OBJECTS_TAG_CLOSE}'
+                else:
+                    objects = str(unique_cls)
+                return objects
 
         except Exception as e:
             self.logger.error(f"|OBJ ID Image| ERROR: {str(e)}")
 
-    async def ocr_image(self, fname, writeTags):
+    async def ocr_image(self, fname, writeTags, returnTag=False):
         self.logger.debug(f"|OCR image| Starting OCR: {str(fname)}")
         text = ""
 
@@ -413,7 +633,11 @@ class ProcessMedia:
                 )
                 res = os.system(command)
             else:
-                return str(ocr["full_text"])
+                if returnTag:
+                    ocrResult = f'{fm_config.OCR_TAG_OPEN}{str(ocr["full_text"])}{fm_config.OCR_TAG_CLOSE}'
+                else:
+                    ocrResult = str(ocr["full_text"])
+                return ocrResult
 
         except Exception as e:
             self.logger.error(f"|OCR Image| ERROR: {str(e)}")
@@ -428,12 +652,11 @@ class ProcessMedia:
 
         await self.extract_audio(fname, fm_config.RAMDISK_DIR)
 
-    async def transcribe(self, fname):
+    async def transcribe(self, fname, returnTag=False):
         # -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/audio.aac","model": "large-v2"}}'
 
         # Check file size if too big, we use a smaller models to avoid timeout
         fileSize = os.path.getsize(fname) / 1048576
-        print(os.path.getsize(fname))
         if fileSize > fm_config.TRASCRIBE_MODEL_SIZE_THRESHOLD:
             model = "small"
         else:
@@ -480,15 +703,18 @@ class ProcessMedia:
             self.logger.error(
                 f"|Transcription| Transcription unsuccessful: {e} {fname}")
 
-            )
+        if returnTag:
+            transcription = f'{fm_config.TRANSCRIBE_TAG_OPEN}{str(transcription["output"]["transcription"])}{fm_config.TRANSCRIBE_TAG_CLOSE}'
+        else:
+            transcription = str(transcription["output"]["transcription"])
 
-        return str(transcription["output"]["transcription"])
+        return transcription
 
-    async def caption_image(self, fname, writeTags):
+    async def caption_image(self, fname, writeTags, returnTag=False):
         self.logger.debug(
             f"|Caption Image| Generating caption for: '{str(fname)}'")
         try:
-            payload=(
+            payload = (
                 '{"input": {"image":"'
                 + str(fm_config.IMAGES_SERVER_URL)
                 + str(fname)
@@ -499,18 +725,18 @@ class ProcessMedia:
                 f"| Caption Image | Image server: '{str(fm_config.CAPTION_API_URL)}'"
             )
 
-            r=requests.post(
+            r = requests.post(
                 fm_config.CAPTION_API_URL,
-                headers = fm_config.IMAGE_CAPTION_HEADER,
-                data = payload,
+                headers=fm_config.IMAGE_CAPTION_HEADER,
+                data=payload,
             ).content
 
-            caption=json.loads(r.decode("utf-8"))
+            caption = json.loads(r.decode("utf-8"))
             self.logger.info(
                 f"|Caption Image| Caption generated for file '{str(fname)}': '{caption['output']}'"
             )
             if writeTags:
-                command=(
+                command = (
                     "exiftool -overwrite_original -Caption-Abstract='"
                     + str(caption["output"])
                     + "' '"
@@ -519,7 +745,12 @@ class ProcessMedia:
                 )
                 res = os.system(command)
             else:
-                return str(caption["output"])
+
+                if returnTag:
+                    caption = f'{fm_config.CAPTION_TAG_OPEN}{str(caption["output"])}{fm_config.CAPTION_TAG_CLOSE}'
+                else:
+                    caption = str(caption["output"])
+                return caption
 
         except Exception as e:
             self.logger.error(
@@ -662,7 +893,8 @@ class ProcessMedia:
                 command = " -keywords-=no_GPS_tag  -keywords+=no_GPS_tag"
                 res = os.system(command)
         else:
-            self.logger.info("|Reverse Geocode| NO GPS info found in image: " + str(fname))
+            self.logger.info(
+                "|Reverse Geocode| NO GPS info found in image: " + str(fname))
 
     def saveFaces(image):
         # saves all the faces in an image

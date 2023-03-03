@@ -118,7 +118,9 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 await processMedia.copy_tags_to_IPTC(file_path)
             if args.idObjImage:
                 await processMedia.id_obj_image(file_path, True)
-            if args.moveFileVideo:
+            if args.getColorsImage:
+                await processMedia.get_top_colors(file_path, n=5)
+            if args.moveFileImage:
                 await processMedia.move_file(file_path, args.imageDestinationDir)
 
         # VIDEO WORKFLOW
@@ -138,6 +140,12 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 file = os.path.abspath(os.path.join(Path(tmpPath), file))
                 logger.info(f"|preProcessVideo| Processing: {file}")
                 if file.lower().endswith(args.imageExtensions):
+                    c = []
+                    t = []
+                    f = []
+                    o = []
+                    colors = []
+                    ob = ""
                     # TODO: add_to_list_if_not_exist replace with list(set(...))
                     if args.captionVideo:
                         try:
@@ -151,8 +159,8 @@ async def process_media(imagesQueue, processMedia, logger, args):
                     if args.classifyFacesVideo:
                         try:
                             # Identify faces
-                            f = str(await processMedia.classify_faces(file, False))
-                            faces = add_to_list_if_not_exist(faces, f)
+                            f = (await processMedia.classify_faces(file, False))
+                            faces = list(set(f))
                         except Exception as e:
                             logger.error(
                                 f"|classifyFacesVideo| Error: {e}")
@@ -160,7 +168,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                     if args.ocrVideo:
                         try:
                             # OCR texts in scene
-                            o = str(await processMedia.ocr_image(file, False))
+                            o = (await processMedia.ocr_image(file, False, returnTag=False))
                             ocr.append(o)
                         except Exception as e:
                             logger.error(
@@ -168,44 +176,56 @@ async def process_media(imagesQueue, processMedia, logger, args):
 
                     if args.idObjVideo:
                         try:  # Identfy objects
-                            ob = str(await processMedia.id_obj_image(file, False))
-                            objects = add_to_list_if_not_exist(objects, ob)
+                            ob = (await processMedia.id_obj_image(file, False, returnTag=False))
+                            objects = list(set(ob))
                         except Exception as e:
                             logger.error(
                                 f"|idObjVideo| Error: {e}")
+                    if args.getColorsVideo:
+                        colors = ""
+                        try:
+                            colors = await processMedia.get_top_colors(file, n=5)
+
+                        except Exception as e:
+                            logger.error(
+                                f"|getColorsVideo| Error: {e}")
 
                 # Transcribe audio
                 if file.lower().endswith(args.audioExtensions) and args.transcribeVideo:
                     try:
-                        t = "\n |Transcribe|: "
-                        t += str(await processMedia.transcribe(file))
+                        t = ""
+                        t += str(await processMedia.transcribe(file, returnTag=False))
                     except Exception as e:
                         logger.error(
                             f"|Transcribe| Error: {e}")
 
             processMedia.removeTempDirectory(file_path)
 
+            logger.info(f"Transcription: {t}|")
             logger.info(f"Caption: {caption}")
             logger.info(f"Faces: {faces}")
             logger.info(f"OCR: {ocr}")
             logger.info(f"Objects: {objects}")
-            logger.info(f"Transcription: {t}|")
+            logger.info(f"Colors: {colors}|")
 
-            kw = faces + objects
+            kw = faces + objects + colors
             d = ""
-            o = "\n |OCR|: "
+            o = ""
 
+            caption
             for ele in caption:
                 d += ". " + ele
             for ele in ocr:
                 if ele != "None":
                     o += ". " + ele
 
-            description = d + o + t
+            description = f"{fm_config.TRANSCRIBE_TAG_OPEN}{t}{fm_config.TRANSCRIBE_TAG_CLOSE}{fm_config.CAPTION_TAG_OPEN}{d}{fm_config.CAPTION_TAG_CLOSE}{fm_config.OBJECTS_TAG_OPEN}{objects}{fm_config.OBJECTS_TAG_CLOSE}{fm_config.OCR_TAG_OPEN}{o}{fm_config.OCR_TAG_CLOSE}{fm_config.FACES_TAG_OPEN}{faces}{fm_config.FACES_TAG_CLOSE}{fm_config.COLORS_TAG_OPEN}{colors}{fm_config.COLORS_TAG_CLOSE}"
             try:
                 await processMedia.write_keywords_metadata_to_video_file(
                     video_file_path=file_path, keywords=kw, description=description
                 )
+                with open(f"{file_path}.txt", 'w') as f:
+                    f.write(description)
             except Exception as e:
                 logger.error(
                     f"|write_keywords_metadata_to_video_file| Error: {e}")

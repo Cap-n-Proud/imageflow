@@ -87,8 +87,21 @@ REVERSE_GEOTAG = True
 CLASSIFY_FACES = True
 OCR_IMAGE = True
 COPY_TAGS_TO_IPTC = True
+GET_COLORS_IMAGE = True
 ID_OBJ = True
-MOVE_FILE = False
+MOVE_FILE_IMAGE = False
+
+
+# CAPTION_IMAGE = False
+# TAG_IMAGE = False
+# REVERSE_GEOTAG = False
+# CLASSIFY_FACES = False
+# OCR_IMAGE = False
+# COPY_TAGS_TO_IPTC = False
+# GET_COLORS_IMAGE = True
+# ID_OBJ = False
+# MOVE_FILE_IMAGE = False
+
 
 CAPTION_VIDEO = True
 REVERSE_GEOTAG_VIDEO = True
@@ -96,9 +109,17 @@ CLASSIFY_FACES_VIDEO = True
 OCR_VIDEO = True
 ID_OBJ_VIDEO = True
 MOVE_FILE_VIDEO = False
+GET_COLORS_VIDEO = True
 TRANSCRIBE_VIDEO = True
 
-
+# CAPTION_VIDEO = False
+# REVERSE_GEOTAG_VIDEO = False
+# CLASSIFY_FACES_VIDEO = False
+# OCR_VIDEO = False
+# ID_OBJ_VIDEO = False
+# MOVE_FILE_VIDEO = False
+# GET_COLORS_VIDEO = True
+# TRANSCRIBE_VIDEO = False
 # --------------------------- Image processor config ---------------------------
 FACE_TRAINING_DIR = "/mnt/Photos/005-PhotoBook/000-knownfaces/"
 REVERSE_GEO_URL = "https://api.opencagedata.com/geocode/v1/json?q="
@@ -120,7 +141,6 @@ OCR_CAPTION_HEADER = {"content-type": "application/json"}
 OCR_API_URL = "http://192.168.1.121:9011/predict"
 OCR_MIN_CONFIDENCE = 0.6
 
-# --------------------------- Image processor OCR config ---------------------------
 DET_MODEL_DIR = (
     "/mnt/Software/200-Apps/imageFlow/models/whl/det/en/en_PP-OCRv3_det_infer/"
 )
@@ -160,6 +180,29 @@ TRASCRIBE_MODEL_SIZE_THRESHOLD = 20
 TRANSCRIBE_MIN_CONFIDENCE = 0.5
 
 # curl http://192.168.1.121:9996/predictions -X POST -H "Content-Type: application/json"  -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/output-audio.aac","model": "large-v2"}}' > pizza2.json
+
+# --------------------------- TAGS ---------------------------
+
+OCR_TAG_OPEN = "<OCR>"
+OCR_TAG_CLOSE = "</OCR>"
+
+FACES_TAG_OPEN = "<FACES>"
+FACES_TAG_CLOSE = "</FACES>"
+
+TRANSCRIBE_TAG_OPEN = "<TRANSCRIBE>"
+TRANSCRIBE_TAG_CLOSE = "</TRANSCRIBE>"
+
+CAPTION_TAG_OPEN = "<CAPTION>"
+CAPTION_TAG_CLOSE = "</CAPTION>"
+
+OBJECTS_TAG_OPEN = "<OBJECTS>"
+OBJECTS_TAG_CLOSE = "</OBJECTS>"
+
+COLORS_TAG_OPEN = "<COLORS>"
+COLORS_TAG_CLOSE = "</COLORS>"
+
+
+ALLOWED_TAGS = ['OCR', 'FACES', 'TRANSCRIBE', 'CAPTION', 'OBJECTS', 'COLORS']
 
 # --------------------------- Solr config ---------------------------
 SOLR_POST_EXE = "/root/solr-8.11.1/bin/post"

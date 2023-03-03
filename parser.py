@@ -24,9 +24,9 @@ workflow_group.add_argument(
 )
 workflow_group.add_argument(
     "-wm",
-    "--moveFile",
-    help=f"Move file [True/False]. Default is: {fm_config.MOVE_FILE}",
-    default=fm_config.MOVE_FILE,
+    "--moveFileImage",
+    help=f"Move file [True/False]. Default is: {fm_config.MOVE_FILE_IMAGE}",
+    default=fm_config.MOVE_FILE_IMAGE,
 )
 workflow_group.add_argument(
     "-wt",
@@ -53,6 +53,12 @@ workflow_group.add_argument(
     default=fm_config.OCR_IMAGE,
 )
 workflow_group.add_argument(
+    "-wgc",
+    "--getColorsImage",
+    help=f"Identify main colors in video [True/False]. Default is: {fm_config.GET_COLORS_IMAGE}",
+    default=fm_config.GET_COLORS_IMAGE,
+)
+workflow_group.add_argument(
     "-wi",
     "--copyTagsToIPTC",
     help=f"Copy Exif tags to IPTC space. Default is: {fm_config.COPY_TAGS_TO_IPTC}",
@@ -71,6 +77,12 @@ workflow_group.add_argument(
     "--idObjVideo",
     help=f"Identify objects in video [True/False]. Default is: {fm_config.ID_OBJ_VIDEO}",
     default=fm_config.ID_OBJ_VIDEO,
+)
+workflow_group.add_argument(
+    "-wgcv",
+    "--getColorsVideo",
+    help=f"Identify main colors in video [True/False]. Default is: {fm_config.GET_COLORS_VIDEO}",
+    default=fm_config.GET_COLORS_VIDEO,
 )
 workflow_group.add_argument(
     "-wmv",
