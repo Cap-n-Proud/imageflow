@@ -101,91 +101,33 @@ async def process_media(imagesQueue, processMedia, logger, args):
         stop_timer.reset()
         stop_timer.start()
 
-        caption = ""
+        caption = []
         faces = []
-        ocr = ""
+        ocr = []
         objects = []
         colors = []
-        reverseGeo = []
-        imageTags = []
-        transcription = ""
 
         # IMAGE WORKFLOW
         # TO DO: remove file tagging from each function adn add a separate one like in the video workflow
         if file.lower().endswith(args.imageExtensions):
-
+            if args.captionImage:
+                await processMedia.caption_image(file_path, True)
             if args.tagImage:
-                imageTags = await processMedia.tag_image(file_path)
+                await processMedia.tag_image(file_path)
             if args.reverseGeotag:
                 await processMedia.reverse_geotag(file_path)
-            if args.captionImage:
-                try:
-                    # Caption image
-                    caption = (str(await processMedia.caption_image(file, False)))
-                except Exception as e:
-                    logger.error(
-                        f"|captionImage| Error: {e}")
             if args.classifyFaces:
-                try:
-                    # Identify faces
-                    f = (await processMedia.classify_faces(file, False))
-                    if len(f):
-                        faces = f
-                except Exception as e:
-                    logger.error(
-                        f"|classifyFacesImage| Error: {e}")
-
+                await processMedia.classify_faces(file_path, True)
             if args.ocrImage:
-                try:
-                    # OCR texts in scene
-                    ocr = (str(await processMedia.ocr_image(file, False, returnTag=False)))
-                except Exception as e:
-                    logger.error(
-                        f"|ocrImage| Error: {e}")
-
+                await processMedia.ocr_image(file_path, True)
+            if args.copyTagsToIPTC:
+                await processMedia.copy_tags_to_IPTC(file_path)
             if args.idObjImage:
-                try:
-                    # Identfy objects
-                    objects = await processMedia.id_obj_image(file, False, returnTag=False)
-                except Exception as e:
-                    logger.error(
-                        f"|idObjImage| Error: {e}")
-
+                await processMedia.id_obj_image(file_path, True)
             if args.getColorsImage:
-                colors = ""
-                try:
-                    colors = await processMedia.get_top_colors(file, n=5)
-
-                except Exception as e:
-                    logger.error(
-                        f"|getColorsImage| Error: {e}")
-
-            if args.writeTagToImage:
-                KW = imageTags + objects + colors + reverseGeo + faces
-                noOCR = "None"
-                if ocr == noOCR:
-                    ocr = ""
-
-                await processMedia.write_keywords_metadata_to_image_file(file, keywords=KW, caption=str(caption), subject=ocr)
+                await processMedia.get_top_colors(file_path, n=5)
             if args.moveFileImage:
                 await processMedia.move_file(file_path, args.imageDestinationDir)
-
-            # if args.captionImage:
-            #     await processMedia.caption_image(file_path, True)
-            # if args.tagImage:
-            #     await processMedia.tag_image(file_path)
-            # if args.reverseGeotag:
-            #     await processMedia.reverse_geotag(file_path)
-            # if args.classifyFaces:
-            #     await processMedia.classify_faces(file_path, True)
-            # if args.ocrImage:
-            #     await processMedia.ocr_image(file_path, True)
-            # if args.copyTagsToIPTC:
-            #     await processMedia.copy_tags_to_IPTC(file_path)
-            # if args.idObjImage:
-            #     await processMedia.id_obj_image(file_path, True)
-            # if args.getColorsImage:
-            #     await processMedia.get_top_colors(file_path, n=5)
 
         # VIDEO WORKFLOW
         if file.lower().endswith(args.videoExtensions):
@@ -199,7 +141,6 @@ async def process_media(imagesQueue, processMedia, logger, args):
             faces = []
             ocr = []
             objects = []
-            transcription = ""
 
             for file in sorted(os.listdir(tmpPath), key=str.lower):
                 file = os.path.abspath(os.path.join(Path(tmpPath), file))
@@ -258,13 +199,20 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 # Transcribe audio
                 if file.lower().endswith(args.audioExtensions) and args.transcribeVideo:
                     try:
-                        transcription = ""
-                        transcription += str(await processMedia.transcribe(file, returnTag=False))
+                        t = ""
+                        t += str(await processMedia.transcribe(file, returnTag=False))
                     except Exception as e:
                         logger.error(
                             f"|Transcribe| Error: {e}")
 
             processMedia.removeTempDirectory(file_path)
+
+            logger.info(f"Transcription: {t}|")
+            logger.info(f"Caption: {caption}")
+            logger.info(f"Faces: {faces}")
+            logger.info(f"OCR: {ocr}")
+            logger.info(f"Objects: {objects}")
+            logger.info(f"Colors: {colors}|")
 
             kw = faces + objects + colors
             d = ""
@@ -288,15 +236,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 logger.error(
                     f"|write_keywords_metadata_to_video_file| Error: {e}")
             if args.moveFileVideo:
-                await processMedia.move_file(file_path, args.videoDestinationDir)
-
-        logger.info(f"Transcription: {transcription}|")
-        logger.info(f"Caption: {caption}")
-        logger.info(f"Keywords: {imageTags}")
-        logger.info(f"Faces: {faces}")
-        logger.info(f"OCR: {ocr}")
-        logger.info(f"Objects: {objects}")
-        logger.info(f"Colors: {colors}|")
+                await processMedia.move_file(file_path, args.videoDestinationFolder)
 
         imagesQueue.task_done()
         stop_timer.stop()

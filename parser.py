@@ -34,6 +34,13 @@ workflow_group.add_argument(
     help=f"Tag image [True/False]. Default is: {fm_config.TAG_IMAGE}",
     default=fm_config.TAG_IMAGE,
 )
+
+workflow_group.add_argument(
+    "-ww",
+    "--writeTagToImage",
+    help=f"Write tags to image [True/False]. Default is: {fm_config.WRITE_TAGS_TO_IMAGE}",
+    default=fm_config.WRITE_TAGS_TO_IMAGE,
+)
 workflow_group.add_argument(
     "-wr",
     "--reverseGeotag",
@@ -148,6 +155,13 @@ folders_group.add_argument(
 )
 
 folders_group.add_argument(
+    "-vd",
+    "--videoDestinationDir",
+    help=f"Path to video destination. Default is: {fm_config.VIDEO_DEST_DIRECTORY}",
+    default=fm_config.VIDEO_DEST_DIRECTORY,
+)
+
+folders_group.add_argument(
     "-l",
     "--logFilePath",
     help=f"Path to log file. Default is: {fm_config.LOG_FILEPATH}",
@@ -161,12 +175,6 @@ folders_group.add_argument(
     default=fm_config.SECRETS_PATH,
 )
 
-folders_group.add_argument(
-    "-vd",
-    "--videoDestinationFolder",
-    help=f"Path to video destination folder. Default is: {fm_config.VIDEO_DEST_FOLDER}",
-    default=fm_config.VIDEO_DEST_FOLDER,
-)
 folders_group.add_argument(
     "-fc",
     "--faceClassifierFile",

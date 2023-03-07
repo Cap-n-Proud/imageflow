@@ -51,17 +51,15 @@ LOG_FILEPATH = "/mnt/Apps_Config/imageflow/"
 LOG_LEVEL = "INFO"
 SCREENSHOT_DEST_FOLDER = "/mnt/Photos/001-Screenshots/"
 IMAGE_DEST_DIRECTORY = "/mnt/Photos/005-PhotoBook/"
-VIDEO_DEST_DIRECTORY = "/mnt/Photos/010-Videos/"
-UNKNOWN_FACE_FOLDER = "/mnt/Photos/990-Faces/unknown_faces/"
+VIDEO_DEST_FOLDER = "/mnt/Photos/010-Videos/"
+UNKNOWN_FACE_FOLDER = "/mnt/Apps/Config/imageflow/unknown_faces/"
 
 SECRETS_PATH = "/home/nuc/"
+# CONFIG_PATH = "/mnt/Apps_Config/imageflow/config/"
 CONFIG_PATH = "/mnt/Software/200-Apps/imageflow/config/"
-#SECRETS_PATH = "/app/imageflow/imageflow_secrets/"
-#CONFIG_PATH = "/app/imageflow/config/"
 
 
-UNKNOWN_FACE_NAME = "unknown_face"
-NO_PERSON_KW = "no_person"
+UNKNOWN_FACE_NAME = "no_person"
 FACE_DISTANCE = 0.5
 SCREENSHOT_TAG = "Comment"
 OCR_TIMEOUT = 60
@@ -91,19 +89,18 @@ OCR_IMAGE = True
 COPY_TAGS_TO_IPTC = True
 GET_COLORS_IMAGE = True
 ID_OBJ = True
-MOVE_FILE_IMAGE = False
-WRITE_TAGS_TO_IMAGE = True
+MOVE_FILE_IMAGE = True
 
-#
+
 # CAPTION_IMAGE = False
 # TAG_IMAGE = False
 # REVERSE_GEOTAG = False
 # CLASSIFY_FACES = False
 # OCR_IMAGE = False
 # COPY_TAGS_TO_IPTC = False
-# GET_COLORS_IMAGE = False
+# GET_COLORS_IMAGE = True
 # ID_OBJ = False
-# MOVE_FILE_IMAGE = True
+# MOVE_FILE_IMAGE = False
 
 
 CAPTION_VIDEO = True
@@ -111,7 +108,7 @@ REVERSE_GEOTAG_VIDEO = True
 CLASSIFY_FACES_VIDEO = True
 OCR_VIDEO = True
 ID_OBJ_VIDEO = True
-MOVE_FILE_VIDEO = False
+MOVE_FILE_VIDEO = True
 GET_COLORS_VIDEO = True
 TRANSCRIBE_VIDEO = True
 
@@ -124,13 +121,13 @@ TRANSCRIBE_VIDEO = True
 # GET_COLORS_VIDEO = True
 # TRANSCRIBE_VIDEO = False
 # --------------------------- Image processor config ---------------------------
-FACE_TRAINING_DIR = "/mnt/Photos/990-Faces/known_faces/"
+FACE_TRAINING_DIR = "/mnt/Photos/005-PhotoBook/000-knownfaces/"
 REVERSE_GEO_URL = "https://api.opencagedata.com/geocode/v1/json?q="
 CROP_FACE_SOURCE_DIR = "/mnt/Photos/005-PhotoBook/2022/"
-#CROP_FACE_DEST_DIR = "/mnt/Photos/000-Process/faces/"
+CROP_FACE_DEST_DIR = "/mnt/Photos/000-Process/faces/"
 FACE_CLASSIFIER_FILE = "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 # FACE_CLASSIFIER_DIR = "/mnt/Software/200-Apps/ZZZ/filemaster/"
-FACE_CLASSIFIER_TRAIN_DIR = "/mnt/Photos/990-Faces/known_faces/"
+FACE_CLASSIFIER_TRAIN_DIR = "/mnt/Photos/005-PhotoBook/000-knownfaces/"
 JSON_FOLDER = "/mnt/Apps_Config/imageflow/json/"
 
 CAPTION_API_URL = "http://192.168.1.163:5000/predictions"

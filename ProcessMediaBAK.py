@@ -13,9 +13,7 @@ import sys
 import pyexiv2
 import base64
 from pathlib import Path
-import os
-import shutil
-import datetime
+
 from datetime import timedelta
 import cv2
 import numpy as np
@@ -104,47 +102,9 @@ class ProcessMedia:
         shutil.rmtree(directory)
         print(f"Ramdisk content at {directory} cleared")
 
-    # async def move_file(self, fname, dest_folder):
-    #     # os.chmod(fname, 0o777)
-    #     command = (
-    #         "exiftool  -overwrite_original '-Directory<FileModifyDate' '-Directory<CreateDate' -d "
-    #         + str(dest_folder)
-    #         + "/%Y/%m/ '"
-    #         + str(fname)
-    #         + "'"
-    #     )
-    #     try:
-    #         res = os.system(command)
-    #         self.logger.info(
-    #             f"|Move File| Moved " + str(fname) + " to " + str(dest_folder)
-    #         )
-    #     except FileNotFoundError as e:
-    #         logger.error("File not found: " + str(row[1]) + " " + str(e))
+        import os
 
-    async def move_file(self, path, baseDest):
-        # Get the file's creation and modification times
-        created_time = os.path.getctime(path)
-        modified_time = os.path.getmtime(path)
-
-        # Use the creation time if available, otherwise use the modification time
-        file_time = created_time if created_time < modified_time else modified_time
-        # Convert the file time to a datetime object
-        file_date = datetime.datetime.fromtimestamp(file_time)
-
-        # Create the folder path using the year and month of the file date
-        folder_path = os.path.join(str(baseDest), str(
-            file_date.year), str(file_date.month).zfill(2))
-
-        # Create the folder if it doesn't exist
-        os.makedirs(folder_path, exist_ok=True)
-
-        # Move the file to the folder
-        file_name = os.path.basename(path)
-        destination = os.path.join(folder_path, file_name)
-        shutil.move(path, destination)
-        self.logger.info(f"|move_file| File moved to. '{folder_path}'")
-
-    async def is_video_file_valid(self, video_path):
+    async def is_video_file_valid(video_path):
         """
         Checks if a video file exists and is readable.
         Args:
@@ -165,7 +125,7 @@ class ProcessMedia:
         self.logger.debug(
             f"Finding scenes for {video_path}, threshold {threshold}")
 
-        if self.is_video_file_valid(video_path):
+        if is_video_file_valid(video_path):
             video = open_video(video_path)
 
             scene_manager = SceneManager()
@@ -391,19 +351,6 @@ class ProcessMedia:
         image = Image.open(fname)
         # Convert the image to a numpy array
         pixels = np.array(image)
-        # Check the shape of the array and remove the alpha channel if present
-
-        # if image.mode != "RGB":
-        #     # Convert the image to RGB mode if it has a different mode
-        #     image = image.convert("RGB")
-        # width, height = image.size
-        # if width * height != image.getchannel('R').size[0]:
-        #     # Handle cases where the image has an unexpected shape
-        #     raise ValueError("Image has an unexpected shape")
-        if pixels.shape[-1] == 4:
-            pixels = pixels[..., :3]
-        # Convert the image to a numpy array
-        pixels = np.array(image)
         # Reshape the array to a 2D array of pixels
         pixels = pixels.reshape(-1, 3)
         # Apply K-means clustering to find the dominant colors
@@ -515,35 +462,8 @@ class ProcessMedia:
         a = pattern.sub('', s).replace('"', '').replace('\n', '')
         return re.sub(r'\s{2,}', ' ', a)
 
-    async def write_keywords_metadata_to_image_file(self, fname, keywords=[], caption="", subject=""):
-        keyCount = 0
-        keyNames = ""
-        command = f"exiftool -overwrite_original "
-
-        # We put keywords like tags, location, colors
-        for key in keywords:
-            keyCount += 1
-            keyNames = keyNames + str(key) + " "
-            command += f"-keywords-='{key}' -keywords+='{key}' "
-
-        # We now add description, usually OCR
-        if len(caption) > 0:
-            command += f"-Caption-Abstract='{str(caption)}' "
-        if len(subject) > 0:
-            command += f"-Subject='{str(subject)}' "
-        # Conclude the comamnd with the filenams
-        command += f"'{str(fname)}' "
-
-        self.logger.debug(f"|Tag Media| Command: {command}")
-
-        res = os.system(command)
-        self.logger.debug(
-            f"|Tag Media| {keyCount} keywords added: {keyNames} to '{str(fname)}'"
-        )
-        pass
-
     async def write_keywords_metadata_to_video_file(
-        self, file_path, keywords, description
+        self, video_file_path, keywords, description
     ):
         import pathlib
 
@@ -551,7 +471,7 @@ class ProcessMedia:
         Writes keywords metadata to a QuickTime video file, removing duplicates.
 
         Parameters:
-        file_path (str): The path to the video file.
+        video_file_path (str): The path to the video file.
         keywords (list): A list of keywords to write as metadata.
 
         Returns:
@@ -559,7 +479,7 @@ class ProcessMedia:
         """
 
         # First, we need to get the current metadata for the file using ffprobe
-        ffprobe_cmd = f'ffprobe -v quiet -print_format json -show_format -show_streams "{file_path}"'
+        ffprobe_cmd = f'ffprobe -v quiet -print_format json -show_format -show_streams "{video_file_path}"'
         ffprobe_output = subprocess.check_output(ffprobe_cmd, shell=True).decode(
             "utf-8"
         )
@@ -582,7 +502,7 @@ class ProcessMedia:
             metadata["keywords"] = ",".join(keywords)
 
         # Finally, we use ffmpeg to write the new metadata back to the file
-        ffmpeg_cmd = f'ffmpeg -i "{file_path}" '
+        ffmpeg_cmd = f'ffmpeg -i "{video_file_path}" '
 
         for key, value in metadata.items():
             ffmpeg_cmd += f"-metadata {key}='{value}' "
@@ -591,7 +511,7 @@ class ProcessMedia:
 
         ffmpeg_cmd += f'-metadata description="{d}" '
 
-        new_file = f"{pathlib.Path(file_path).parent}/{pathlib.Path(file_path).stem}_new{pathlib.Path(file_path).suffix}"
+        new_file = f"{pathlib.Path(video_file_path).parent}/{pathlib.Path(video_file_path).stem}_new{pathlib.Path(video_file_path).suffix}"
         ffmpeg_cmd += f'-c copy "{new_file}"'
         self.logger.debug(
             f"|write_keywords_metadata_to_video_file|: {ffmpeg_cmd}")
@@ -600,8 +520,8 @@ class ProcessMedia:
             if command_run == 0:
                 self.logger.info(
                     f"|write_keywords_metadata_to_video_file| keywords successfully written: {ffmpeg_cmd}")
-                os.remove(file_path)
-                os.rename(f"{new_file}", file_path)
+                os.remove(video_file_path)
+                os.rename(f"{new_file}", video_file_path)
             else:
                 self.logger.error(
                     f"|write_keywords_metadata_to_video_file| The following command generated an error: {ffmpeg_cmd}")
@@ -610,7 +530,6 @@ class ProcessMedia:
             self.logger.error(
                 f"|write_keywords_metadata_to_video_file| Error: {e}")
 
-# DELETE THIS
     async def writeTagsMedia(self, fname, KW=None, caption=None, description=None):
 
         keyCount = 0
@@ -669,14 +588,33 @@ class ProcessMedia:
             clsCount = 0
             tags = ""
             tagNames = ""
-            for cls in unique_cls:
-                tagNames = tagNames + str(cls) + " "
-
-            if returnTag:
-                objects = f'{fm_config.OBJECTS_TAG_OPEN}{str(tagNames)}{fm_config.OBJECTS_TAG_CLOSE}'
+            if writeTags:
+                for cls in unique_cls:
+                    clsCount += 1
+                    tagNames = tagNames + str(cls) + " "
+                    tags = (
+                        tags
+                        + " -keywords-='"
+                        + cls
+                        + "' "
+                        + " -keywords+='"
+                        + cls
+                        + "' "
+                    )
+                command = (
+                    "exiftool -overwrite_original " +
+                    tags + " '" + str(fname) + "'"
+                )
+                res = os.system(command)
+                self.logger.info(
+                    f"|Tag Image| {clsCount} objects identified {tagNames} to {str(fname)}"
+                )
             else:
-                objects = unique_cls
-            return objects
+                if returnTag:
+                    objects = f'{fm_config.OBJECTS_TAG_OPEN}{str(tagNames)}{fm_config.OBJECTS_TAG_CLOSE}'
+                else:
+                    objects = str(unique_cls)
+                return objects
 
         except Exception as e:
             self.logger.error(f"|OBJ ID Image| ERROR: {str(e)}")
@@ -705,11 +643,21 @@ class ProcessMedia:
             # self.logger.info(f"|OCR Image| Text: {str(ocr['full_text'])}")
             self.logger.info(
                 f'|OCR Image| successfull: {str(ocr["full_text"])}')
-            if returnTag:
-                ocrResult = f'{fm_config.OCR_TAG_OPEN}{str(ocr["full_text"])}{fm_config.OCR_TAG_CLOSE}'
+            if writeTags:
+                command = (
+                    "exiftool -overwrite_original -Caption-Abstract='"
+                    + str(ocr["full_text"])
+                    + "' '"
+                    + str(fname)
+                    + "'"
+                )
+                res = os.system(command)
             else:
-                ocrResult = ocr["full_text"]
-            return ocrResult
+                if returnTag:
+                    ocrResult = f'{fm_config.OCR_TAG_OPEN}{str(ocr["full_text"])}{fm_config.OCR_TAG_CLOSE}'
+                else:
+                    ocrResult = str(ocr["full_text"])
+                return ocrResult
 
         except Exception as e:
             self.logger.error(f"|OCR Image| ERROR: {str(e)}")
@@ -807,10 +755,11 @@ class ProcessMedia:
             self.logger.info(
                 f"|Caption Image| Caption generated for file '{str(fname)}': '{caption['output']}'"
             )
+
             if returnTag:
                 caption = f'{fm_config.CAPTION_TAG_OPEN}{str(caption["output"])}{fm_config.CAPTION_TAG_CLOSE}'
             else:
-                caption = "".join(caption["output"])
+                caption = str(caption["output"])
             return caption
 
         except Exception as e:
@@ -871,20 +820,31 @@ class ProcessMedia:
         # Since we have one input, one output will exist here.
         output = post_model_outputs_response.outputs[0]
         tags = ""
-        tagNames = []
+        tagNames = ""
         tagCount = 0
         # self.logger.info("Predicted concepts:")
         for concept in output.data.concepts:
             tagCount += 1
-            tagNames.append(concept.name)
+            tagNames = tagNames + concept.name + " "
+            tags = (
+                tags
+                + " -keywords-='"
+                + concept.name
+                + "' "
+                + " -keywords+='"
+                + concept.name
+                + "' "
+            )
+        if len(tags) > 0:
+            self.logger.info("|Tag Image| Tags generated: " + tagNames)
+            command = "exiftool -overwrite_original " + \
+                tags + " '" + str(fname) + "'"
+            res = os.system(command)
+            self.logger.debug("|Tag Image| Tags are assigend  " + str(fname))
 
-        if len(tagNames) > 0:
-            self.logger.info(
-                f"|Tag Image| {tagCount} tags generated: " + str(tagNames))
-        return tagNames
+        return tags
 
     async def reverse_geotag(self, fname):
-        reverseGeo = []
         if self.imgHasGPS(fname):
             self.logger.debug(
                 "|Reverse Geocode| Reverse geocoding: " + str(fname))
@@ -913,10 +873,24 @@ class ProcessMedia:
                 data = json.loads(response.text)
                 reverse_geo = data["results"][0]["components"]
                 for key, value in reverse_geo.items():
-                    reverseGeo.append(value)
+                    command = (
+                        command
+                        + " -keywords-='"
+                        + str(value)
+                        + "'"
+                        + " -keywords+='"
+                        + str(value)
+                        + "'"
+                    )
+                command = (
+                    "exiftool -overwrite_original " +
+                    command + " '" + str(fname) + "'"
+                )
+
+                res = os.system(command)
                 self.logger.info(
                     "|Reverse Geocode| Reverse geocoding successfull: " +
-                    str(reverseGeo)
+                    str(command)
                 )
 
             except Exception as e:
@@ -926,12 +900,11 @@ class ProcessMedia:
                     + " "
                     + str(fname)
                 )
-
+                command = " -keywords-=no_GPS_tag  -keywords+=no_GPS_tag"
+                res = os.system(command)
         else:
             self.logger.info(
                 "|Reverse Geocode| NO GPS info found in image: " + str(fname))
-            reverseGeo.append("no_GPS_tag")
-        return reverseGeo
 
     def saveFaces(image):
         # saves all the faces in an image
@@ -1052,10 +1025,9 @@ class ProcessMedia:
                     # Cropping saved to: '{fm_config.UNKNOWN_FACE_FOLDER}'.")
                     # self.saveFaces()
 
-            return names
+            return str(names)
         else:
-            return
-            # list(names.append(fm_config.NO_PERSON_KW))
+            return str(fm_config.NO_PERSON_KW)
 
     async def copy_tags_to_IPTC(self, fname):
         try:
@@ -1114,6 +1086,23 @@ class ProcessMedia:
     def delete_media_from_index(self, collection, fname):
         command = ""
         # http://localhost:8983/solr/MyCore/update?stream.body=
+
+    async def move_file(self, fname, dest_folder):
+        # os.chmod(fname, 0o777)
+        command = (
+            "exiftool  -overwrite_original '-Directory<FileModifyDate' '-Directory<CreateDate' -d "
+            + str(dest_folder)
+            + "/%Y/%m/ '"
+            + str(fname)
+            + "'"
+        )
+        try:
+            res = os.system(command)
+            self.logger.info(
+                f"|Move File| Moved " + str(fname) + " to " + str(dest_folder)
+            )
+        except FileNotFoundError as e:
+            logger.error("File not found: " + str(row[1]) + " " + str(e))
 
     def crop_faces(self, source_dir, dest_dir, file_extension):
         # TODO:ADD condition     if len(face_bounding_boxes) == 1: before saving image
