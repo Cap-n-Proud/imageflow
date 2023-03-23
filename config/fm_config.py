@@ -46,13 +46,12 @@ DOC_EXTENSIONS = (
 
 # EXCEPTION_PATTERN = ["EXCEPTION", "FATAL", "ERROR"]
 
-LOG_NAME = "filemaster.log"
+LOG_NAME = "imageflow_dev.log"
 LOG_FILEPATH = "/mnt/Apps_Config/imageflow/"
 LOG_LEVEL = "INFO"
 SCREENSHOT_DEST_FOLDER = "/mnt/Photos/001-Screenshots/"
 IMAGE_DEST_DIRECTORY = "/mnt/Photos/005-PhotoBook/"
 VIDEO_DEST_DIRECTORY = "/mnt/Photos/010-Videos/"
-UNKNOWN_FACE_FOLDER = "/mnt/Photos/990-Faces/unknown_faces/"
 
 SECRETS_PATH = "/home/nuc/"
 CONFIG_PATH = "/mnt/Software/200-Apps/imageflow/config/"
@@ -60,9 +59,7 @@ CONFIG_PATH = "/mnt/Software/200-Apps/imageflow/config/"
 #CONFIG_PATH = "/app/imageflow/config/"
 
 
-UNKNOWN_FACE_NAME = "unknown_face"
 NO_PERSON_KW = "no_person"
-FACE_DISTANCE = 0.5
 SCREENSHOT_TAG = "Comment"
 OCR_TIMEOUT = 60
 
@@ -131,6 +128,11 @@ CROP_FACE_SOURCE_DIR = "/mnt/Photos/005-PhotoBook/2022/"
 FACE_CLASSIFIER_FILE = "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 # FACE_CLASSIFIER_DIR = "/mnt/Software/200-Apps/ZZZ/filemaster/"
 FACE_CLASSIFIER_TRAIN_DIR = "/mnt/Photos/990-Faces/known_faces/"
+UNKNOWN_FACE_FOLDER = "/mnt/Photos/990-Faces/unknown_faces/"
+UNKNOWN_FACE_NAME = "unknown_face"
+FACE_DISTANCE = 0.5
+
+
 JSON_FOLDER = "/mnt/Apps_Config/imageflow/json/"
 
 CAPTION_API_URL = "http://192.168.1.163:5000/predictions"

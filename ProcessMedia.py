@@ -36,7 +36,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 from PIL import Image
 import webcolors
-ProcessMedia_version = "4.1"
+ProcessMedia_version = "4.3"
 
 
 class ProcessMedia:
@@ -104,22 +104,8 @@ class ProcessMedia:
         shutil.rmtree(directory)
         print(f"Ramdisk content at {directory} cleared")
 
-    # async def move_file(self, fname, dest_folder):
-    #     # os.chmod(fname, 0o777)
-    #     command = (
-    #         "exiftool  -overwrite_original '-Directory<FileModifyDate' '-Directory<CreateDate' -d "
-    #         + str(dest_folder)
-    #         + "/%Y/%m/ '"
-    #         + str(fname)
-    #         + "'"
-    #     )
-    #     try:
-    #         res = os.system(command)
-    #         self.logger.info(
-    #             f"|Move File| Moved " + str(fname) + " to " + str(dest_folder)
-    #         )
-    #     except FileNotFoundError as e:
-    #         logger.error("File not found: " + str(row[1]) + " " + str(e))
+    async def change_permissions(self, filename):
+        os.chmod(filename, 0o666)
 
     async def move_file(self, path, baseDest):
         # Get the file's creation and modification times
@@ -160,12 +146,37 @@ class ProcessMedia:
             return False
         return True
 
+    async def spaced_sampling(self,video_path,output_dir):
+        space = " "
+        video = cv2.VideoCapture(video_path)
+        sampling_strategy = fm_config.SAMPLING_STRATEGY
+        screenshot_number = 0
+        fps = video.get(cv2.CAP_PROP_FPS)
+        frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        result = [int(frame_count * float(sample))
+                  for sample in sampling_strategy]
+        sampling_frames = ",".join(map("{:,}".format, result))
+        self.logger.info(
+            f"frames per second: {fps}, frame count: {frame_count}, sampling frames: {space.join(sampling_frames.split(','))}"
+        )
+
+        for sample in sampling_strategy:
+            frame_id = int(frame_count * float(sample))
+            video.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
+            ret, frame = video.read()
+            self.logger.debug(
+                f"Writing screenshot: {frame_id} in {output_dir}/screenshot{screenshot_number}.jpg"
+            )
+            cv2.imwrite(
+                f"{output_dir}/screenshot{screenshot_number}.jpg", frame)
+            screenshot_number += 1
+
     async def split_video_into_scenes(self, video_path, output_dir=None, threshold=1):
         # Open our video, create a scene manager, and add a detector.
         self.logger.debug(
             f"Finding scenes for {video_path}, threshold {threshold}")
 
-        if self.is_video_file_valid(video_path):
+        if await self.is_video_file_valid(video_path):
             video = open_video(video_path)
 
             scene_manager = SceneManager()
@@ -182,32 +193,9 @@ class ProcessMedia:
                     scene_list=scene_list, video=video, output_dir=output_dir, num_images=1
                 )
             else:
-                a = " "
                 self.logger.info(
                     f"Limited number of scenes found: {video_path}, threshold {threshold}. Proceeding with time-fixed sampling strategy: {fm_config.SAMPLING_STRATEGY}")
-                video = cv2.VideoCapture(video_path)
-                sampling_strategy = fm_config.SAMPLING_STRATEGY
-                screenshot_number = 0
-                fps = video.get(cv2.CAP_PROP_FPS)
-                frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-                result = [int(frame_count * float(sample))
-                          for sample in sampling_strategy]
-                sampling_frames = ",".join(map("{:,}".format, result))
-                self.logger.info(
-                    f"frames per second: {fps}, frame count: {frame_count}, sampling frames: {a.join(sampling_frames.split(','))}"
-                )
-
-                for sample in sampling_strategy:
-                    frame_id = int(frame_count * float(sample))
-                    video.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
-                    ret, frame = video.read()
-                    self.logger.debug(
-                        f"Writing screenshot: {frame_id} in {output_dir}/screenshot{screenshot_number}.jpg"
-                    )
-
-                    cv2.imwrite(
-                        f"{output_dir}/screenshot{screenshot_number}.jpg", frame)
-                    screenshot_number += 1
+                await self.spaced_sampling(video_path,output_dir)
 
     async def extract_audio(self, fname, tmp_folder):
         filename, file_extension = os.path.splitext(os.path.basename(fname))
@@ -540,7 +528,7 @@ class ProcessMedia:
         self.logger.debug(
             f"|Tag Media| {keyCount} keywords added: {keyNames} to '{str(fname)}'"
         )
-        pass
+        await change_permissions(str(fname))
 
     async def write_keywords_metadata_to_video_file(
         self, file_path, keywords, description
@@ -582,7 +570,7 @@ class ProcessMedia:
             metadata["keywords"] = ",".join(keywords)
 
         # Finally, we use ffmpeg to write the new metadata back to the file
-        ffmpeg_cmd = f'ffmpeg -i "{file_path}" '
+        ffmpeg_cmd = f'ffmpeg -y -i "{file_path}" '
 
         for key, value in metadata.items():
             ffmpeg_cmd += f"-metadata {key}='{value}' "
@@ -605,6 +593,7 @@ class ProcessMedia:
             else:
                 self.logger.error(
                     f"|write_keywords_metadata_to_video_file| The following command generated an error: {ffmpeg_cmd}")
+            await change_permissions(str(file_path))
 
         except Exception as e:
             self.logger.error(
@@ -716,13 +705,16 @@ class ProcessMedia:
 
     async def preProcessVideo(self, fname):
         await self.createTempDirectory(fname)
-        await self.split_video_into_scenes(
-            fname,
-            threshold=fm_config.SCENE_DETECT_THRESHOLD,
-            output_dir=fm_config.RAMDISK_DIR,
-        )
+        try:
+            await self.split_video_into_scenes(
+                fname,
+                threshold=fm_config.SCENE_DETECT_THRESHOLD,
+                output_dir=fm_config.RAMDISK_DIR,
+            )
 
-        await self.extract_audio(fname, fm_config.RAMDISK_DIR)
+            await self.extract_audio(fname, fm_config.RAMDISK_DIR)
+        except Exception as e:
+            self.logger.error(f"|preProcessVideo| ERROR: {str(e)}")
 
     async def transcribe(self, fname, returnTag=False):
         # -d '{"input": {   "audio": "http://192.168.1.121:9999/mnt/Photos/001-Process/audio.aac","model": "large-v2"}}'
@@ -944,17 +936,15 @@ class ProcessMedia:
         # See also: find_faces_in_picture_cnn.py
         face_locations = face_recognition.face_locations(image)
 
-        print("I found {} face(s) in this photograph.".format(len(face_locations)))
+        self.logger.info(
+            f"|saFaces| I found {len(face_locations)} face(s) in this photograph.")
 
         for face_location in face_locations:
 
             # Print the location of each face in this image
             top, right, bottom, left = face_location
-            print(
-                "A face is located at pixel location Top: {}, Left: {}, Bottom: {}, Right: {}".format(
-                    top, left, bottom, right
-                )
-            )
+            self.logger.info(
+                f"A face is located at pixel location Top: {top}, Left: {left}, Bottom: {bottom}, Right: {right}")
 
             # You can access the actual face itself like this:
             face_image = image[top:bottom, left:right]
