@@ -45,6 +45,9 @@ class ProcessMedia:
     async def info(self):
         pass
 
+    async def change_permissions(self, filename):
+        os.chmod(filename, 0o666)
+
     def __init__(self, args):
         ProcessMedia.logger = logger
         self.args = args
@@ -104,9 +107,6 @@ class ProcessMedia:
         shutil.rmtree(directory)
         print(f"Ramdisk content at {directory} cleared")
 
-    async def change_permissions(self, filename):
-        os.chmod(filename, 0o666)
-
     async def move_file(self, path, baseDest):
         # Get the file's creation and modification times
         created_time = os.path.getctime(path)
@@ -146,7 +146,7 @@ class ProcessMedia:
             return False
         return True
 
-    async def spaced_sampling(self,video_path,output_dir):
+    async def spaced_sampling(self, video_path, output_dir):
         space = " "
         video = cv2.VideoCapture(video_path)
         sampling_strategy = fm_config.SAMPLING_STRATEGY
@@ -195,7 +195,7 @@ class ProcessMedia:
             else:
                 self.logger.info(
                     f"Limited number of scenes found: {video_path}, threshold {threshold}. Proceeding with time-fixed sampling strategy: {fm_config.SAMPLING_STRATEGY}")
-                await self.spaced_sampling(video_path,output_dir)
+                await self.spaced_sampling(video_path, output_dir)
 
     async def extract_audio(self, fname, tmp_folder):
         filename, file_extension = os.path.splitext(os.path.basename(fname))
@@ -516,19 +516,25 @@ class ProcessMedia:
 
         # We now add description, usually OCR
         if len(caption) > 0:
-            command += f"-Caption-Abstract='{str(caption)}' "
+            caption = str(caption).replace('"', "'")
+            command += f'-Caption-Abstract="{caption}" '
         if len(subject) > 0:
-            command += f"-Subject='{str(subject)}' "
-        # Conclude the comamnd with the filenams
+            subject = str(subject).replace('"', "'")
+            command += f'-Subject="{subject}" '
+            # PNG does not have a "subject" tag, so we add the subject to the Caption-Abstract tag
+            if os.path.splitext(fname)[1] == ".png":
+                command += f'-Caption-Abstract="{caption} | {subject}" '
+
+        # Conclude the comamnd with the filename
         command += f"'{str(fname)}' "
 
-        self.logger.debug(f"|Tag Media| Command: {command}")
+        self.logger.info(f"|Tag Media| Command: {command}")
 
         res = os.system(command)
-        self.logger.debug(
+        self.logger.info(
             f"|Tag Media| {keyCount} keywords added: {keyNames} to '{str(fname)}'"
         )
-        await change_permissions(str(fname))
+        await self.change_permissions(str(fname))
 
     async def write_keywords_metadata_to_video_file(
         self, file_path, keywords, description
@@ -593,29 +599,11 @@ class ProcessMedia:
             else:
                 self.logger.error(
                     f"|write_keywords_metadata_to_video_file| The following command generated an error: {ffmpeg_cmd}")
-            await change_permissions(str(file_path))
+            await self.change_permissions(str(file_path))
 
         except Exception as e:
             self.logger.error(
                 f"|write_keywords_metadata_to_video_file| Error: {e}")
-
-# DELETE THIS
-    async def writeTagsMedia(self, fname, KW=None, caption=None, description=None):
-
-        keyCount = 0
-        keyNames = ""
-        keyword = ""
-        for key in KW:
-            keyCount += 1
-            keyNames = keyNames + str(key) + " "
-            keyword = keyword + f" -keywords-='{key}' -keywords+='{key}'"
-        command = f"exiftool -overwrite_original {keyword} '{str(fname)}'"
-        self.logger.info(f"|Tag Media| Command: {command}")
-
-        res = os.system(command)
-        self.logger.info(
-            f"|Tag Media| {keyCount} keywords added: {keyNames} to '{str(fname)}'"
-        )
 
     async def id_obj_image(self, fname, writeTags, returnTag=False):
         import ast
@@ -877,6 +865,14 @@ class ProcessMedia:
 
     async def reverse_geotag(self, fname):
         reverseGeo = []
+        GPSTag = ""
+
+        # try:
+        #     GPSTag = self.imgHasGPS(fname)
+        # except Exception as e:
+        #     self.logger.error(
+        #         "|imgHasGPS| Reverse geocoding: " + str(fname))
+
         if self.imgHasGPS(fname):
             self.logger.debug(
                 "|Reverse Geocode| Reverse geocoding: " + str(fname))

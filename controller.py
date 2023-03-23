@@ -1,14 +1,6 @@
 # Docker
-# python3 controller.py -iw "/mnt/VDev/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/VDev/Apps_Config/imageflow/" -s "/mnt/VDev/No_Share/secrets/imageflow/" -fc "/mnt/VDev/Apps_Config/imageflow/faceClassifier.pkl"
-
-# python3 controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/home/paolo/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
-# pip3 install requests face_recognition pillow scikit-learn scipy matplotlib clarifai_grpc pyexiv2
-# pip3 install --upgrade setuptools protobuf
-
-# NUC
-# python3 controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Apps_Config/imageflow/" -s "/home/nuc/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" -r true
-# python3 controller.py -iw "/mnt/Documents/501-Knowledge/200- Personal/Food/Pizza alla Romana/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Apps_Config/imageflow/" -s "/home/nuc/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" -r true --logLevel "INFO"
-
+# python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" --moveFileImage False --moveFileVideo False
+# python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/IN/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 
 import asyncio
 import os
@@ -108,6 +100,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
         colors = []
         reverseGeo = []
         imageTags = []
+        KW = []
         transcription = ""
 
         # IMAGE WORKFLOW
@@ -115,15 +108,22 @@ async def process_media(imagesQueue, processMedia, logger, args):
         if file.lower().endswith(args.imageExtensions):
 
             if args.tagImage:
-                imageTags = await processMedia.tag_image(file_path)
+
+                try:
+                    imageTags = await processMedia.tag_image(file_path)
+                except Exception as e:
+                    logger.error(f"|tag_image| Error: {e}")
             if args.reverseGeotag:
-                await processMedia.reverse_geotag(file_path)
+                try:
+                    await processMedia.reverse_geotag(file_path)
+                except Exception as e:
+                    logger.error(f"|reverse_geotag| Error: {e}")
             if args.captionImage:
                 try:
                     # Caption image
                     caption = str(await processMedia.caption_image(file, False))
                 except Exception as e:
-                    logger.error(f"|captionImage| Error: {e}")
+                    logger.error(f"|caption_image| Error: {e}")
             if args.classifyFaces:
                 try:
                     # Identify faces
@@ -152,15 +152,22 @@ async def process_media(imagesQueue, processMedia, logger, args):
                     logger.error(f"|idObjImage| Error: {e}")
 
             if args.getColorsImage:
-                colors = ""
                 try:
                     colors = await processMedia.get_top_colors(file, n=5)
 
                 except Exception as e:
                     logger.error(f"|getColorsImage| Error: {e}")
-
             if args.writeTagToImage:
-                KW = imageTags + objects + colors + reverseGeo + faces
+                if reverseGeo is not None:
+                    KW += reverseGeo
+                if imageTags is not None:
+                    KW += imageTags
+                if objects is not None:
+                    KW += objects
+                if colors is not None:
+                    KW += colors
+                if faces is not None:
+                    KW += faces
                 noOCR = "None"
                 if ocr == noOCR:
                     ocr = ""
@@ -168,25 +175,9 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 await processMedia.write_keywords_metadata_to_image_file(
                     file, keywords=KW, caption=str(caption), subject=ocr
                 )
+                await processMedia.copy_tags_to_IPTC(file)
             if args.moveFileImage:
                 await processMedia.move_file(file_path, args.imageDestinationDir)
-
-            # if args.captionImage:
-            #     await processMedia.caption_image(file_path, True)
-            # if args.tagImage:
-            #     await processMedia.tag_image(file_path)
-            # if args.reverseGeotag:
-            #     await processMedia.reverse_geotag(file_path)
-            # if args.classifyFaces:
-            #     await processMedia.classify_faces(file_path, True)
-            # if args.ocrImage:
-            #     await processMedia.ocr_image(file_path, True)
-            # if args.copyTagsToIPTC:
-            #     await processMedia.copy_tags_to_IPTC(file_path)
-            # if args.idObjImage:
-            #     await processMedia.id_obj_image(file_path, True)
-            # if args.getColorsImage:
-            #     await processMedia.get_top_colors(file_path, n=5)
 
         # VIDEO WORKFLOW
         if file.lower().endswith(args.videoExtensions):
@@ -336,8 +327,6 @@ async def recursive_listdir(path, recursive=True):
 
 
 # function that watches a folder for new files
-
-
 async def watch_folder(imagesQueue, args):
     processed_files = set()
 

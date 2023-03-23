@@ -81,7 +81,7 @@ PRE_PROCESS_ORIG = "/mnt/Photos/000-InstantUpload/"
 # --------------------------- Workflow config ---------------------------
 
 CAPTION_IMAGE = True
-TAG_IMAGE = True
+TAG_IMAGE = False
 REVERSE_GEOTAG = True
 CLASSIFY_FACES = True
 OCR_IMAGE = True
