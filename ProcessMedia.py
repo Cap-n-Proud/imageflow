@@ -126,9 +126,9 @@ class ProcessMedia:
                     break
                 except ValueError:
                     pass
-            else:
-                # None of the formats matched, use modification time as fallback
-                file_time = os.path.getmtime(path)
+        else:
+            # None of the formats matched, use modification time as fallback
+            file_time = os.path.getmtime(path)
 
         # Convert the file time to a datetime object
         file_date = datetime.datetime.fromtimestamp(file_time)
@@ -538,6 +538,7 @@ class ProcessMedia:
                 command.append(f"-keywords+='{key}'")
 
         # Add the caption and subject to the command
+        # ISSUe IF ALSO TAGGED, OVERWRITES SUBJECT
         if caption:
             caption = str(caption).replace('"', "'")
             command.append(f'-Caption-Abstract="{caption}"')

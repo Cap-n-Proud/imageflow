@@ -19,7 +19,7 @@ WATCH_RECURSIVELY = True
 
 # Patterns of the files to watch
 IMAGE_EXTENSIONS = (".jpg", "jpeg", ".webp", ".heic",
-                    ".png", ".bmp", ".gif", ".tif", ".tiff")
+                    ".png", ".bmp", ".gif", ".tif", ".tiff", ".arw", ".dng")
 # IMAGE_EXTENSIONS = IMAGE_EXTENSIONS + "," + IMAGE_EXTENSIONS.upper()
 
 VIDEO_EXTENSIONS = (".mov", ".mp4", ".avi")
@@ -65,7 +65,7 @@ NO_PERSON_KW = "no_person"
 SCREENSHOT_TAG = "Comment"
 OCR_TIMEOUT = 60
 
-MOVE_EXT_IMG = ".jpg,.png,"
+MOVE_EXT_IMG = ".jpg,.png,.tiff,.arw"
 MOVE_EXT_VIDEO = ".mov,.mp4,.mkv,"
 MOVE_EXT = MOVE_EXT_IMG + MOVE_EXT_VIDEO + \
     MOVE_EXT_IMG.upper() + MOVE_EXT_VIDEO.upper()
@@ -87,22 +87,22 @@ TAG_IMAGE = True
 REVERSE_GEOTAG = True
 CLASSIFY_FACES = True
 OCR_IMAGE = True
-COPY_TAGS_TO_IPTC = True
+COPY_TAGS_TO_IPTC = False
 GET_COLORS_IMAGE = True
 ID_OBJ = True
 MOVE_FILE_IMAGE = True
 WRITE_TAGS_TO_IMAGE = True
 
-CAPTION_IMAGE = False
-TAG_IMAGE = False
-REVERSE_GEOTAG = True
-CLASSIFY_FACES = False
-OCR_IMAGE = False
-COPY_TAGS_TO_IPTC = True
-GET_COLORS_IMAGE = False
-ID_OBJ = False
-MOVE_FILE_IMAGE = False
-WRITE_TAGS_TO_IMAGE = True
+# CAPTION_IMAGE = False
+# TAG_IMAGE = False
+# REVERSE_GEOTAG = False
+# CLASSIFY_FACES = False
+# OCR_IMAGE = True
+# COPY_TAGS_TO_IPTC = False
+# GET_COLORS_IMAGE = False
+# ID_OBJ = False
+# MOVE_FILE_IMAGE = False
+# WRITE_TAGS_TO_IMAGE = True
 
 CAPTION_VIDEO = True
 REVERSE_GEOTAG_VIDEO = True
