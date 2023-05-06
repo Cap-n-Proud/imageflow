@@ -6,31 +6,25 @@ import re
 import json
 import face_recognition
 from PIL import Image
-import logging
 import pickle as cPickle
 from sklearn import svm
 import sys
 import pyexiv2
-import base64
-from pathlib import Path
 import os
 import shutil
 import datetime
-from datetime import timedelta
 import cv2
 import numpy as np
-from pathlib import Path
 
 # TODO: this should not be impoted here, we should use ther args
 from config import fm_config
 
 from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2, service_pb2_grpc
-from clarifai_grpc.grpc.api.status import status_code_pb2, status_pb2
+from clarifai_grpc.grpc.api.status import status_code_pb2
 
-from scenedetect import open_video, SceneManager, split_video_ffmpeg
-from scenedetect.detectors import ContentDetector, AdaptiveDetector
-from scenedetect.video_splitter import split_video_ffmpeg
+from scenedetect import open_video, SceneManager
+from scenedetect.detectors import AdaptiveDetector
 from scenedetect.scene_manager import save_images
 import numpy as np
 from sklearn.cluster import KMeans
@@ -109,11 +103,33 @@ class ProcessMedia:
 
     async def move_file(self, path, baseDest):
         # Get the file's creation and modification times
-        created_time = os.path.getctime(path)
-        modified_time = os.path.getmtime(path)
+        if path.lower().endswith(fm_config.IMAGE_EXTENSIONS):
+            metadata_cmd = ['exiftool', '-json', path]
+            metadata = json.loads(subprocess.check_output(metadata_cmd))
+            created_time = metadata[0].get('DateTimeOriginal')
+        elif path.lower().endswith(fm_config.VIDEO_EXTENSIONS):
+            metadata_cmd = ['ffprobe', '-v', 'quiet', '-print_format',
+                            'json', '-show_format', '-show_streams', path]
+            metadata = json.loads(subprocess.check_output(metadata_cmd))
+            created_time = metadata['format']['tags'].get('creation_time')
+        else:
+            created_time = os.path.getctime(path)
 
-        # Use the creation time if available, otherwise use the modification time
-        file_time = created_time if created_time < modified_time else modified_time
+        if created_time:
+            # Remove milliseconds from timestamp string
+            timestamp_str = created_time.split('.')[0]
+            formats = ['%Y:%m:%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S']
+            for format_str in formats:
+                try:
+                    file_time = datetime.datetime.strptime(
+                        timestamp_str, format_str).timestamp()
+                    break
+                except ValueError:
+                    pass
+            else:
+                # None of the formats matched, use modification time as fallback
+                file_time = os.path.getmtime(path)
+
         # Convert the file time to a datetime object
         file_date = datetime.datetime.fromtimestamp(file_time)
 
@@ -124,11 +140,17 @@ class ProcessMedia:
         # Create the folder if it doesn't exist
         os.makedirs(folder_path, exist_ok=True)
 
+        # Set permissions recursively for all directories in the path
+        for root, dirs, files in os.walk(folder_path):
+            os.chmod(root, 0o777)
+
         # Move the file to the folder
         file_name = os.path.basename(path)
         destination = os.path.join(folder_path, file_name)
         shutil.move(path, destination)
         self.logger.info(f"|move_file| File moved to. '{folder_path}'")
+
+        return destination
 
     async def is_video_file_valid(self, video_path):
         """
@@ -381,13 +403,6 @@ class ProcessMedia:
         pixels = np.array(image)
         # Check the shape of the array and remove the alpha channel if present
 
-        # if image.mode != "RGB":
-        #     # Convert the image to RGB mode if it has a different mode
-        #     image = image.convert("RGB")
-        # width, height = image.size
-        # if width * height != image.getchannel('R').size[0]:
-        #     # Handle cases where the image has an unexpected shape
-        #     raise ValueError("Image has an unexpected shape")
         if pixels.shape[-1] == 4:
             pixels = pixels[..., :3]
         # Convert the image to a numpy array
@@ -503,38 +518,51 @@ class ProcessMedia:
         a = pattern.sub('', s).replace('"', '').replace('\n', '')
         return re.sub(r'\s{2,}', ' ', a)
 
+    import subprocess
+
     async def write_keywords_metadata_to_image_file(self, fname, keywords=[], caption="", subject=""):
         keyCount = 0
         keyNames = ""
-        command = f"exiftool -overwrite_original "
+        command = ["exiftool", "-q", "-overwrite_original"]
 
-        # We put keywords like tags, location, colors
-        for key in keywords:
-            keyCount += 1
-            keyNames = keyNames + str(key) + " "
-            command += f"-keywords-='{key}' -keywords+='{key}' "
+        # Check if there are any keywords to add
+        if keywords:
+            for key in keywords:
+                if not key:
+                    continue
+                keyCount += 1
+                keyNames += str(key) + " "
 
-        # We now add description, usually OCR
-        if len(caption) > 0:
+                # Add the keyword to the command
+                command.append(f"-keywords-='{key}'")
+                command.append(f"-keywords+='{key}'")
+
+        # Add the caption and subject to the command
+        if caption:
             caption = str(caption).replace('"', "'")
-            command += f'-Caption-Abstract="{caption}" '
-        if len(subject) > 0:
+            command.append(f'-Caption-Abstract="{caption}"')
+        if subject:
             subject = str(subject).replace('"', "'")
-            command += f'-Subject="{subject}" '
+            command.append(f'-Subject="{subject}"')
             # PNG does not have a "subject" tag, so we add the subject to the Caption-Abstract tag
-            if os.path.splitext(fname)[1] == ".png":
-                command += f'-Caption-Abstract="{caption} | {subject}" '
+        if os.path.splitext(fname)[1] == ".png":
+            command.append(f'-Caption-Abstract="{caption} | {subject}"')
 
-        # Conclude the comamnd with the filename
-        command += f"'{str(fname)}' "
+        # Add the filename to the command
+        command.append(str(fname))
 
-        self.logger.info(f"|Tag Media| Command: {command}")
+        self.logger.debug(
+            f"|write_keywords_metadata_to_image_file| Command: {' '.join(command)}")
 
-        res = os.system(command)
-        self.logger.info(
-            f"|Tag Media| {keyCount} keywords added: {keyNames} to '{str(fname)}'"
-        )
-        await self.change_permissions(str(fname))
+        try:
+            subprocess.run(command, check=True)
+            await self.change_permissions(str(fname))
+            self.logger.info(
+                f"|write_keywords_metadata_to_image_file| {keyCount} keywords added: {keyNames} to '{str(fname)}'"
+            )
+        except subprocess.CalledProcessError as e:
+            self.logger.error(
+                f"|write_keywords_metadata_to_image_file| Error: {e}")
 
     async def write_keywords_metadata_to_video_file(
         self, file_path, keywords, description
@@ -605,7 +633,7 @@ class ProcessMedia:
             self.logger.error(
                 f"|write_keywords_metadata_to_video_file| Error: {e}")
 
-    async def id_obj_image(self, fname, writeTags, returnTag=False):
+    async def id_obj_image(self, fname, returnTag=False):
         import ast
 
         self.logger.debug(
@@ -658,7 +686,7 @@ class ProcessMedia:
         except Exception as e:
             self.logger.error(f"|OBJ ID Image| ERROR: {str(e)}")
 
-    async def ocr_image(self, fname, writeTags, returnTag=False):
+    async def ocr_image(self, fname, returnTag=False):
         self.logger.debug(f"|OCR image| Starting OCR: {str(fname)}")
         text = ""
 
@@ -762,7 +790,7 @@ class ProcessMedia:
 
         return transcription
 
-    async def caption_image(self, fname, writeTags, returnTag=False):
+    async def caption_image(self, fname, returnTag=False):
         self.logger.debug(
             f"|Caption Image| Generating caption for: '{str(fname)}'")
         try:
@@ -864,62 +892,35 @@ class ProcessMedia:
         return tagNames
 
     async def reverse_geotag(self, fname):
-        reverseGeo = []
-        GPSTag = ""
 
-        # try:
-        #     GPSTag = self.imgHasGPS(fname)
-        # except Exception as e:
-        #     self.logger.error(
-        #         "|imgHasGPS| Reverse geocoding: " + str(fname))
+        try:
+            output = subprocess.check_output(
+                f"exiftool -c '%.9f' -GPSPosition '{fname}'", shell=True)
+            temp = re.findall(r"\d+", output.decode())
+            lat = temp[0] + "." + temp[1]
+            lon = temp[2] + "." + temp[3]
 
-        if self.imgHasGPS(fname):
-            self.logger.debug(
-                "|Reverse Geocode| Reverse geocoding: " + str(fname))
-            # The output variable stores the output of the  command
-            command = "exiftool -c '%.9f' -GPSPosition '" + str(fname) + "'"
-            self.logger.debug(
-                "|Reverse Geocode| Extracting GPS info: " + str(command))
-            output = subprocess.getoutput(command)
-            command = ""
-            try:
-                temp = re.findall(r"\d+", output)
-                lat = temp[0] + "." + temp[1]
-                lon = temp[2] + "." + temp[3]
+            url = f"{fm_config.REVERSE_GEO_URL}{lat},{lon}&key={self.s.REVERSE_GEO_API}"
+            response = requests.get(url)
+            response.raise_for_status()
 
-                url = (
-                    fm_config.REVERSE_GEO_URL
-                    + str(lat)
-                    + ","
-                    + str(lon)
-                    + "&key="
-                    + self.s.REVERSE_GEO_API
-                )
-
-                response = requests.get(url)
-
-                data = json.loads(response.text)
-                reverse_geo = data["results"][0]["components"]
-                for key, value in reverse_geo.items():
-                    reverseGeo.append(value)
-                self.logger.info(
-                    "|Reverse Geocode| Reverse geocoding successfull: " +
-                    str(reverseGeo)
-                )
-
-            except Exception as e:
-                self.logger.error(
-                    "|Reverse Geocode| Reverse geocoding unsuccessful: "
-                    + str(e)
-                    + " "
-                    + str(fname)
-                )
-
-        else:
+            data = response.json()
+            reverse_geo = [value for key, value in data["results"]
+                           [0]["components"].items()]
             self.logger.info(
-                "|Reverse Geocode| NO GPS info found in image: " + str(fname))
-            reverseGeo.append("no_GPS_tag")
-        return reverseGeo
+                "|Reverse Geocode| Reverse geocoding successful: " + str(reverse_geo))
+
+        except subprocess.CalledProcessError as e:
+            self.logger.error(
+                f"|Reverse Geocode| Failed to extract GPS info for {fname}: {e}")
+            return []
+
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            self.logger.error(
+                f"|Reverse Geocode| Failed to reverse geocode {fname}: {e}")
+            return []
+
+        return list(reverse_geo)
 
     def saveFaces(image):
         # saves all the faces in an image
@@ -948,7 +949,7 @@ class ProcessMedia:
             pil_image.save(
                 f"{fm_config.UNKNOWN_FACE_FOLDER}int({time.time}).jpg")
 
-    async def classify_faces(self, fname, writeTags):
+    async def classify_faces(self, fname):
         encodings = []
         names = []
 

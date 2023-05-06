@@ -18,9 +18,11 @@ WATCH_RECURSIVELY = True
 # DO_WATCH_DIRECTORIES = True
 
 # Patterns of the files to watch
-IMAGE_EXTENSIONS = (".jpg", ".webp", ".heic", ".png", ".bmp", ".gif", ".tif")
+IMAGE_EXTENSIONS = (".jpg", "jpeg", ".webp", ".heic",
+                    ".png", ".bmp", ".gif", ".tif", ".tiff")
 # IMAGE_EXTENSIONS = IMAGE_EXTENSIONS + "," + IMAGE_EXTENSIONS.upper()
-VIDEO_EXTENSIONS = (".mov", ".mp4")
+
+VIDEO_EXTENSIONS = (".mov", ".mp4", ".avi")
 AUDIO_EXTENSIONS = (".aac", ".mp3")
 DOC_EXTENSIONS = (
     ".txt",
@@ -81,34 +83,33 @@ PRE_PROCESS_ORIG = "/mnt/Photos/000-InstantUpload/"
 # --------------------------- Workflow config ---------------------------
 
 CAPTION_IMAGE = True
-TAG_IMAGE = False
+TAG_IMAGE = True
 REVERSE_GEOTAG = True
 CLASSIFY_FACES = True
 OCR_IMAGE = True
 COPY_TAGS_TO_IPTC = True
 GET_COLORS_IMAGE = True
 ID_OBJ = True
-MOVE_FILE_IMAGE = False
+MOVE_FILE_IMAGE = True
 WRITE_TAGS_TO_IMAGE = True
 
-#
-# CAPTION_IMAGE = False
-# TAG_IMAGE = False
-# REVERSE_GEOTAG = False
-# CLASSIFY_FACES = False
-# OCR_IMAGE = False
-# COPY_TAGS_TO_IPTC = False
-# GET_COLORS_IMAGE = False
-# ID_OBJ = False
-# MOVE_FILE_IMAGE = True
-
+CAPTION_IMAGE = False
+TAG_IMAGE = False
+REVERSE_GEOTAG = True
+CLASSIFY_FACES = False
+OCR_IMAGE = False
+COPY_TAGS_TO_IPTC = True
+GET_COLORS_IMAGE = False
+ID_OBJ = False
+MOVE_FILE_IMAGE = False
+WRITE_TAGS_TO_IMAGE = True
 
 CAPTION_VIDEO = True
 REVERSE_GEOTAG_VIDEO = True
 CLASSIFY_FACES_VIDEO = True
 OCR_VIDEO = True
 ID_OBJ_VIDEO = True
-MOVE_FILE_VIDEO = False
+MOVE_FILE_VIDEO = True
 GET_COLORS_VIDEO = True
 TRANSCRIBE_VIDEO = True
 

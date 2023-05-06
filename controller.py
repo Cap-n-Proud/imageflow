@@ -1,6 +1,11 @@
 # Docker
-# python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" --moveFileImage False --moveFileVideo False
-# python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/IN/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
+# screen python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
+
+# Test
+# python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
+
+
+# ERRORS: video process colors are not cpatured correctley, GS reverse GEO does not work
 
 import asyncio
 import os
@@ -43,31 +48,15 @@ def init(args):
     logger.addHandler(stdout_handler)
 
 
-# function that adds keyword and caption to file's metadata
-async def add_metadata(file_path, args):
-    print(file_path)
-    # code to add keyword and caption to file's metadata
-    os.system(
-        f"exiftool -overwrite_original  -keywords='new keyword' {file_path}")
-    print(f"Added keyword to {file_path}")
-    pass
-
-
-async def reverse_geo(file_path, args):
-    print("reverse geo", file_path)
-    pass
-
-
 def extract_unique_keywords(lst):
-    result = []
+    result = set()
     for item in lst:
         if item == "None":
             continue
         sub_lst = eval(item)
         for keyword in sub_lst:
-            if keyword not in result:
-                result.append(keyword)
-    return result
+            result.add(keyword)
+    return list(result)
 
 
 def add_to_list_if_not_exist(lst, items):
@@ -106,28 +95,28 @@ async def process_media(imagesQueue, processMedia, logger, args):
         # IMAGE WORKFLOW
         # TO DO: remove file tagging from each function adn add a separate one like in the video workflow
         if file.lower().endswith(args.imageExtensions):
-
+            if args.moveFileImage:
+                file_path = await processMedia.move_file(file_path, args.imageDestinationDir)
             if args.tagImage:
-
                 try:
                     imageTags = await processMedia.tag_image(file_path)
                 except Exception as e:
                     logger.error(f"|tag_image| Error: {e}")
             if args.reverseGeotag:
                 try:
-                    await processMedia.reverse_geotag(file_path)
+                    reverseGeo = await processMedia.reverse_geotag(file_path)
                 except Exception as e:
                     logger.error(f"|reverse_geotag| Error: {e}")
             if args.captionImage:
                 try:
                     # Caption image
-                    caption = str(await processMedia.caption_image(file, False))
+                    caption = str(await processMedia.caption_image(file_path))
                 except Exception as e:
                     logger.error(f"|caption_image| Error: {e}")
             if args.classifyFaces:
                 try:
                     # Identify faces
-                    f = await processMedia.classify_faces(file, False)
+                    f = await processMedia.classify_faces(file_path)
                     if len(f):
                         faces = f
                 except Exception as e:
@@ -137,7 +126,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 try:
                     # OCR texts in scene
                     ocr = str(
-                        await processMedia.ocr_image(file, False, returnTag=False)
+                        await processMedia.ocr_image(file_path, returnTag=False)
                     )
                 except Exception as e:
                     logger.error(f"|ocrImage| Error: {e}")
@@ -146,14 +135,14 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 try:
                     # Identfy objects
                     objects = await processMedia.id_obj_image(
-                        file, False, returnTag=False
+                        file_path, returnTag=False
                     )
                 except Exception as e:
                     logger.error(f"|idObjImage| Error: {e}")
 
             if args.getColorsImage:
                 try:
-                    colors = await processMedia.get_top_colors(file, n=5)
+                    colors = await processMedia.get_top_colors(file_path, n=5)
 
                 except Exception as e:
                     logger.error(f"|getColorsImage| Error: {e}")
@@ -173,19 +162,21 @@ async def process_media(imagesQueue, processMedia, logger, args):
                     ocr = ""
 
                 await processMedia.write_keywords_metadata_to_image_file(
-                    file, keywords=KW, caption=str(caption), subject=ocr
+                    file_path, keywords=KW, caption=str(caption), subject=ocr
                 )
-                await processMedia.copy_tags_to_IPTC(file)
-            if args.moveFileImage:
-                await processMedia.move_file(file_path, args.imageDestinationDir)
+                if fm_config.COPY_TAGS_TO_IPTC == True:
+                    await processMedia.copy_tags_to_IPTC(file_path)
 
         # VIDEO WORKFLOW
         if file.lower().endswith(args.videoExtensions):
             videoWorkflowSuccess = True
             try:
+                # We first move the video because changing keywords in videos creates a new video thus losing the info of the original creation date
+                if args.moveFileVideo:
+                    file_path = await processMedia.move_file(file_path, args.videoDestinationDir)
                 tmpFName = Path(file_path).stem
                 tmpPath = fm_config.RAMDISK_DIR + str(tmpFName)
-                logger.debug(
+                logger.info(
                     f"|preProcessVideo| File: {file_path}. Temp path: {str(tmpPath)}"
                 )
                 await processMedia.preProcessVideo(file_path)
@@ -218,7 +209,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                         if args.classifyFacesVideo:
                             try:
                                 # Identify faces
-                                f = str(await processMedia.classify_faces(file, False))
+                                f = str(await processMedia.classify_faces(file))
                                 faces = add_to_list_if_not_exist(faces, f)
                             except Exception as e:
                                 logger.error(
@@ -229,7 +220,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                                 # OCR texts in scene
                                 o = str(
                                     await processMedia.ocr_image(
-                                        file, False, returnTag=False
+                                        file, returnTag=False
                                     )
                                 )
                                 ocr.append(o)
@@ -240,7 +231,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                             try:  # Identfy objects
                                 ob = str(
                                     await processMedia.id_obj_image(
-                                        file, False, returnTag=False
+                                        file, returnTag=False
                                     )
                                 )
                                 objects = add_to_list_if_not_exist(objects, ob)
@@ -272,7 +263,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
 
             processMedia.removeTempDirectory(file_path)
             if videoWorkflowSuccess:
-                kw = faces + objects + colors
+                KW = faces + objects + colors
                 d = ""
                 o = ""
 
@@ -285,16 +276,17 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 description = f"{fm_config.TRANSCRIBE_TAG_OPEN}{transcription}{fm_config.TRANSCRIBE_TAG_CLOSE}{fm_config.CAPTION_TAG_OPEN}{d}{fm_config.CAPTION_TAG_CLOSE}{fm_config.OBJECTS_TAG_OPEN}{objects}{fm_config.OBJECTS_TAG_CLOSE}{fm_config.OCR_TAG_OPEN}{o}{fm_config.OCR_TAG_CLOSE}{fm_config.FACES_TAG_OPEN}{faces}{fm_config.FACES_TAG_CLOSE}{fm_config.COLORS_TAG_OPEN}{colors}{fm_config.COLORS_TAG_CLOSE}"
                 try:
                     await processMedia.write_keywords_metadata_to_video_file(
-                        file_path=file_path, keywords=kw, description=description
+                        file_path=file_path, keywords=KW, description=description
                     )
-                    with open(f"{file_path}.txt", "w") as f:
+                    # Creates a sidecar file for the video and changes permisisons accorgingly
+                    sidecar_file = f"{file_path}.txt"
+                    with open(sidecar_file, "w") as f:
                         f.write(description)
-
+                    os.chmod(sidecar_file, 0o777)
                 except Exception as e:
                     logger.error(
                         f"|write_keywords_metadata_to_video_file| Error: {e}")
-                if args.moveFileVideo:
-                    await processMedia.move_file(file_path, args.videoDestinationDir)
+
             else:
                 logger.error(
                     f"|VideoWorkflow| =====> WORKFLOW ERROR <===== File '{file_path}' not changed"
@@ -302,6 +294,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
         logger.info(f"Transcription: {transcription}|")
         logger.info(f"Caption: {caption}")
         logger.info(f"Keywords: {imageTags}")
+        logger.info(f"Reverse Geo: {reverseGeo}")
         logger.info(f"Faces: {faces}")
         logger.info(f"OCR: {ocr}")
         logger.info(f"Objects: {objects}")
