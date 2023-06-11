@@ -852,7 +852,8 @@ class ProcessMedia:
 
         post_model_outputs_response = stub.PostModelOutputs(
             service_pb2.PostModelOutputsRequest(
-                model_id="aaa03c23b3724a16a56b629203edc62c",
+                model_id='general-image-recognition',
+                # model_id="aaa03c23b3724a16a56b629203edc62c",
                 inputs=[
                     resources_pb2.Input(
                         data=resources_pb2.Data(
