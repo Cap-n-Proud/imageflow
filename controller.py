@@ -95,25 +95,27 @@ async def process_media(imagesQueue, processMedia, logger, args):
         # IMAGE WORKFLOW
         # TO DO: remove file tagging from each function adn add a separate one like in the video workflow
         if file.lower().endswith(args.imageExtensions):
-            if args.moveFileImage:
-                file_path = await processMedia.move_file(file_path, args.imageDestinationDir)
-            if args.tagImage:
+            if args.moveFileImage == "True":
+                file_path = await processMedia.move_file(
+                    file_path, args.imageDestinationDir
+                )
+            if args.tagImage == "True":
                 try:
                     imageTags = await processMedia.tag_image(file_path)
                 except Exception as e:
                     logger.error(f"|tag_image| Error: {e}")
-            if args.reverseGeotag:
+            if args.reverseGeotag == "True":
                 try:
                     reverseGeo = await processMedia.reverse_geotag(file_path)
                 except Exception as e:
                     logger.error(f"|reverse_geotag| Error: {e}")
-            if args.captionImage:
+            if args.captionImage == "True":
                 try:
                     # Caption image
                     caption = str(await processMedia.caption_image(file_path))
                 except Exception as e:
                     logger.error(f"|caption_image| Error: {e}")
-            if args.classifyFaces:
+            if args.classifyFaces == "True":
                 try:
                     # Identify faces
                     f = await processMedia.classify_faces(file_path)
@@ -122,16 +124,14 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 except Exception as e:
                     logger.error(f"|classifyFacesImage| Error: {e}")
 
-            if args.ocrImage:
+            if args.ocrImage == "True":
                 try:
                     # OCR texts in scene
-                    ocr = str(
-                        await processMedia.ocr_image(file_path, returnTag=False)
-                    )
+                    ocr = str(await processMedia.ocr_image(file_path, returnTag=False))
                 except Exception as e:
                     logger.error(f"|ocrImage| Error: {e}")
 
-            if args.idObjImage:
+            if args.idObjImage == "True":
                 try:
                     # Identfy objects
                     objects = await processMedia.id_obj_image(
@@ -140,13 +140,13 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 except Exception as e:
                     logger.error(f"|idObjImage| Error: {e}")
 
-            if args.getColorsImage:
+            if args.getColorsImage == "True":
                 try:
                     colors = await processMedia.get_top_colors(file_path, n=5)
 
                 except Exception as e:
                     logger.error(f"|getColorsImage| Error: {e}")
-            if args.writeTagToImage:
+            if args.writeTagToImage == "True":
                 if reverseGeo is not None:
                     KW += reverseGeo
                 if imageTags is not None:
@@ -172,8 +172,10 @@ async def process_media(imagesQueue, processMedia, logger, args):
             videoWorkflowSuccess = True
             try:
                 # We first move the video because changing keywords in videos creates a new video thus losing the info of the original creation date
-                if args.moveFileVideo:
-                    file_path = await processMedia.move_file(file_path, args.videoDestinationDir)
+                if args.moveFileVideo == "True":
+                    file_path = await processMedia.move_file(
+                        file_path, args.videoDestinationDir
+                    )
                 tmpFName = Path(file_path).stem
                 tmpPath = fm_config.RAMDISK_DIR + str(tmpFName)
                 logger.info(
@@ -198,7 +200,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                         colors = []
                         ob = ""
                         # TODO: add_to_list_if_not_exist replace with list(set(...))
-                        if args.captionVideo:
+                        if args.captionVideo == "True":
                             try:
                                 # Caption all the scene images
                                 c = str(await processMedia.caption_image(file, False))
@@ -206,28 +208,25 @@ async def process_media(imagesQueue, processMedia, logger, args):
                             except Exception as e:
                                 logger.error(f"|captionVideo| Error: {e}")
 
-                        if args.classifyFacesVideo:
+                        if args.classifyFacesVideo == "True":
                             try:
                                 # Identify faces
                                 f = str(await processMedia.classify_faces(file))
                                 faces = add_to_list_if_not_exist(faces, f)
                             except Exception as e:
-                                logger.error(
-                                    f"|classifyFacesVideo| Error: {e}")
+                                logger.error(f"|classifyFacesVideo| Error: {e}")
 
-                        if args.ocrVideo:
+                        if args.ocrVideo == "True":
                             try:
                                 # OCR texts in scene
                                 o = str(
-                                    await processMedia.ocr_image(
-                                        file, returnTag=False
-                                    )
+                                    await processMedia.ocr_image(file, returnTag=False)
                                 )
                                 ocr.append(o)
                             except Exception as e:
                                 logger.error(f"|ocrVideo| Error: {e}")
 
-                        if args.idObjVideo:
+                        if args.idObjVideo == "True":
                             try:  # Identfy objects
                                 ob = str(
                                     await processMedia.id_obj_image(
@@ -237,7 +236,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                                 objects = add_to_list_if_not_exist(objects, ob)
                             except Exception as e:
                                 logger.error(f"|idObjVideo| Error: {e}")
-                        if args.getColorsVideo:
+                        if args.getColorsVideo == "True":
                             colors = ""
                             try:
                                 colors = await processMedia.get_top_colors(file, n=5)
@@ -248,7 +247,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                     # Transcribe audio
                     if (
                         file.lower().endswith(args.audioExtensions)
-                        and args.transcribeVideo
+                        and args.transcribeVideo == "True"
                     ):
                         try:
                             transcription = ""
@@ -284,8 +283,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                         f.write(description)
                     os.chmod(sidecar_file, 0o777)
                 except Exception as e:
-                    logger.error(
-                        f"|write_keywords_metadata_to_video_file| Error: {e}")
+                    logger.error(f"|write_keywords_metadata_to_video_file| Error: {e}")
 
             else:
                 logger.error(
@@ -303,8 +301,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
         imagesQueue.task_done()
         stop_timer.stop()
         logger.info(
-            "Media processed in: " +
-            str(stop_timer.duration()) + " " + str(file_path)
+            "Media processed in: " + str(stop_timer.duration()) + " " + str(file_path)
         )
 
 
@@ -373,8 +370,7 @@ async def main():
     task1 = asyncio.create_task(watch_folder(imagesQueue, args))
     # start multiple tasks that process files in the imagesQueue
     task2 = [
-        asyncio.create_task(process_media(
-            imagesQueue, processMedia, logger, args))
+        asyncio.create_task(process_media(imagesQueue, processMedia, logger, args))
         for _ in range(5)
     ]
 

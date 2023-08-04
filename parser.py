@@ -54,7 +54,7 @@ workflow_group.add_argument(
     choices=('True', 'False')
 )
 workflow_group.add_argument(
-    "-wf", ac
+    "-wf",
     "--classifyFaces",
     help=f"Find and classify faces in image [True/False]. Default is: {fm_config.CLASSIFY_FACES}",
     default=fm_config.CLASSIFY_FACES,

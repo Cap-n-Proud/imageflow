@@ -18,8 +18,19 @@ WATCH_RECURSIVELY = True
 # DO_WATCH_DIRECTORIES = True
 
 # Patterns of the files to watch
-IMAGE_EXTENSIONS = (".jpg", "jpeg", ".webp", ".heic",
-                    ".png", ".bmp", ".gif", ".tif", ".tiff", ".arw", ".dng")
+IMAGE_EXTENSIONS = (
+    ".jpg",
+    "jpeg",
+    ".webp",
+    ".heic",
+    ".png",
+    ".bmp",
+    ".gif",
+    ".tif",
+    ".tiff",
+    ".arw",
+    ".dng",
+)
 # IMAGE_EXTENSIONS = IMAGE_EXTENSIONS + "," + IMAGE_EXTENSIONS.upper()
 
 VIDEO_EXTENSIONS = (".mov", ".mp4", ".avi")
@@ -57,8 +68,8 @@ VIDEO_DEST_DIRECTORY = "/mnt/Photos/010-Videos/"
 
 SECRETS_PATH = "/home/nuc/"
 CONFIG_PATH = "/mnt/Software/200-Apps/imageflow/config/"
-#SECRETS_PATH = "/app/imageflow/imageflow_secrets/"
-#CONFIG_PATH = "/app/imageflow/config/"
+# SECRETS_PATH = "/app/imageflow/imageflow_secrets/"
+# CONFIG_PATH = "/app/imageflow/config/"
 
 
 NO_PERSON_KW = "no_person"
@@ -67,8 +78,7 @@ OCR_TIMEOUT = 60
 
 MOVE_EXT_IMG = ".jpg,.png,.tiff,.arw"
 MOVE_EXT_VIDEO = ".mov,.mp4,.mkv,"
-MOVE_EXT = MOVE_EXT_IMG + MOVE_EXT_VIDEO + \
-    MOVE_EXT_IMG.upper() + MOVE_EXT_VIDEO.upper()
+MOVE_EXT = MOVE_EXT_IMG + MOVE_EXT_VIDEO + MOVE_EXT_IMG.upper() + MOVE_EXT_VIDEO.upper()
 PRE_PROCESS_ORIG = "/mnt/Photos/000-InstantUpload/"
 # PRE_PROCESS_DEST = "/mnt/Photos/000-Process/"
 
@@ -82,16 +92,16 @@ PRE_PROCESS_ORIG = "/mnt/Photos/000-InstantUpload/"
 
 # --------------------------- Workflow config ---------------------------
 
-CAPTION_IMAGE = True
-TAG_IMAGE = True
-REVERSE_GEOTAG = True
-CLASSIFY_FACES = True
-OCR_IMAGE = True
-COPY_TAGS_TO_IPTC = False
-GET_COLORS_IMAGE = True
-ID_OBJ = True
-MOVE_FILE_IMAGE = False
-WRITE_TAGS_TO_IMAGE = True
+CAPTION_IMAGE = "True"
+TAG_IMAGE = "True"
+REVERSE_GEOTAG = "True"
+CLASSIFY_FACES = "True"
+OCR_IMAGE = "True"
+COPY_TAGS_TO_IPTC = "False"
+GET_COLORS_IMAGE = "True"
+ID_OBJ = "True"
+MOVE_FILE_IMAGE = "False"
+WRITE_TAGS_TO_IMAGE = "True"
 
 # CAPTION_IMAGE = False
 # TAG_IMAGE = False
@@ -104,14 +114,14 @@ WRITE_TAGS_TO_IMAGE = True
 # MOVE_FILE_IMAGE = False
 # WRITE_TAGS_TO_IMAGE = True
 
-CAPTION_VIDEO = True
-REVERSE_GEOTAG_VIDEO = True
-CLASSIFY_FACES_VIDEO = True
-OCR_VIDEO = True
-ID_OBJ_VIDEO = True
-MOVE_FILE_VIDEO = False
-GET_COLORS_VIDEO = True
-TRANSCRIBE_VIDEO = True
+CAPTION_VIDEO = "True"
+REVERSE_GEOTAG_VIDEO = "True"
+CLASSIFY_FACES_VIDEO = "True"
+OCR_VIDEO = "True"
+ID_OBJ_VIDEO = "True"
+MOVE_FILE_VIDEO = "False"
+GET_COLORS_VIDEO = "True"
+TRANSCRIBE_VIDEO = "True"
 
 # CAPTION_VIDEO = False
 # REVERSE_GEOTAG_VIDEO = False
@@ -125,7 +135,7 @@ TRANSCRIBE_VIDEO = True
 FACE_TRAINING_DIR = "/mnt/Photos/990-Faces/known_faces/"
 REVERSE_GEO_URL = "https://api.opencagedata.com/geocode/v1/json?q="
 CROP_FACE_SOURCE_DIR = "/mnt/Photos/005-PhotoBook/2022/"
-#CROP_FACE_DEST_DIR = "/mnt/Photos/000-Process/faces/"
+# CROP_FACE_DEST_DIR = "/mnt/Photos/000-Process/faces/"
 FACE_CLASSIFIER_FILE = "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 # FACE_CLASSIFIER_DIR = "/mnt/Software/200-Apps/ZZZ/filemaster/"
 FACE_CLASSIFIER_TRAIN_DIR = "/mnt/Photos/990-Faces/known_faces/"
@@ -179,7 +189,7 @@ TRANSCRIBE_HEADER = {"content-type": "application/json"}
 TRANSCRIBE_API_URL = "http://192.168.1.121:9996/predictions"
 TRANSCRIBE__MODEL_NAME = "large-v2"
 TRANSCRIBE__MODEL_NAME = "medium"
-#["tiny", "base", "small", "medium", "large-v1", "large-v2"],
+# ["tiny", "base", "small", "medium", "large-v1", "large-v2"],
 
 TRASCRIBE_MODEL_SIZE_THRESHOLD = 20
 # NOT IMPLEMNETED
@@ -208,7 +218,7 @@ COLORS_TAG_OPEN = "<COLORS>"
 COLORS_TAG_CLOSE = "</COLORS>"
 
 
-ALLOWED_TAGS = ['OCR', 'FACES', 'TRANSCRIBE', 'CAPTION', 'OBJECTS', 'COLORS']
+ALLOWED_TAGS = ["OCR", "FACES", "TRANSCRIBE", "CAPTION", "OBJECTS", "COLORS"]
 
 # --------------------------- Solr config ---------------------------
 SOLR_POST_EXE = "/root/solr-8.11.1/bin/post"
