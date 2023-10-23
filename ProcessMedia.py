@@ -30,7 +30,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 from PIL import Image
 import webcolors
-ProcessMedia_version = "4.3"
+
+ProcessMedia_version = "4.5"
 
 
 class ProcessMedia:
@@ -49,6 +50,8 @@ class ProcessMedia:
         import s
 
         self.s = s
+        os.environ["REPLICATE_API_TOKEN"] = s.REPLICATE_API_TOKEN
+
         pass
 
     async def createTempDirectory(self, fname):
@@ -62,7 +65,8 @@ class ProcessMedia:
         command = f"mkdir '{fm_config.RAMDISK_DIR}{directory}'"
         os.system(command)
         self.logger.debug(
-            f"Temp directory created at '{fm_config.RAMDISK_DIR}{directory}'")
+            f"Temp directory created at '{fm_config.RAMDISK_DIR}{directory}'"
+        )
 
     def removeTempDirectory(self, fname):
         directory = os.path.splitext(os.path.basename(fname))[0]
@@ -74,8 +78,7 @@ class ProcessMedia:
             )
             return
         os.system(f"rm -r '{fm_config.RAMDISK_DIR}{directory}'")
-        self.logger.info(
-            f"Directory removed: '{fm_config.RAMDISK_DIR}{directory}'.")
+        self.logger.info(f"Directory removed: '{fm_config.RAMDISK_DIR}{directory}'.")
 
     def create_ramdisk(self, directory, size):
         # Check if the directory exists already
@@ -104,25 +107,34 @@ class ProcessMedia:
     async def move_file(self, path, baseDest):
         # Get the file's creation and modification times
         if path.lower().endswith(fm_config.IMAGE_EXTENSIONS):
-            metadata_cmd = ['exiftool', '-json', path]
+            metadata_cmd = ["exiftool", "-json", path]
             metadata = json.loads(subprocess.check_output(metadata_cmd))
-            created_time = metadata[0].get('DateTimeOriginal')
+            created_time = metadata[0].get("DateTimeOriginal")
         elif path.lower().endswith(fm_config.VIDEO_EXTENSIONS):
-            metadata_cmd = ['ffprobe', '-v', 'quiet', '-print_format',
-                            'json', '-show_format', '-show_streams', path]
+            metadata_cmd = [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
+                "-show_format",
+                "-show_streams",
+                path,
+            ]
             metadata = json.loads(subprocess.check_output(metadata_cmd))
-            created_time = metadata['format']['tags'].get('creation_time')
+            created_time = metadata["format"]["tags"].get("creation_time")
         else:
             created_time = os.path.getctime(path)
 
         if created_time:
             # Remove milliseconds from timestamp string
-            timestamp_str = created_time.split('.')[0]
-            formats = ['%Y:%m:%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S']
+            timestamp_str = created_time.split(".")[0]
+            formats = ["%Y:%m:%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"]
             for format_str in formats:
                 try:
                     file_time = datetime.datetime.strptime(
-                        timestamp_str, format_str).timestamp()
+                        timestamp_str, format_str
+                    ).timestamp()
                     break
                 except ValueError:
                     pass
@@ -134,8 +146,9 @@ class ProcessMedia:
         file_date = datetime.datetime.fromtimestamp(file_time)
 
         # Create the folder path using the year and month of the file date
-        folder_path = os.path.join(str(baseDest), str(
-            file_date.year), str(file_date.month).zfill(2))
+        folder_path = os.path.join(
+            str(baseDest), str(file_date.year), str(file_date.month).zfill(2)
+        )
 
         # Create the folder if it doesn't exist
         os.makedirs(folder_path, exist_ok=True)
@@ -175,8 +188,7 @@ class ProcessMedia:
         screenshot_number = 0
         fps = video.get(cv2.CAP_PROP_FPS)
         frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-        result = [int(frame_count * float(sample))
-                  for sample in sampling_strategy]
+        result = [int(frame_count * float(sample)) for sample in sampling_strategy]
         sampling_frames = ",".join(map("{:,}".format, result))
         self.logger.info(
             f"frames per second: {fps}, frame count: {frame_count}, sampling frames: {space.join(sampling_frames.split(','))}"
@@ -189,34 +201,34 @@ class ProcessMedia:
             self.logger.debug(
                 f"Writing screenshot: {frame_id} in {output_dir}/screenshot{screenshot_number}.jpg"
             )
-            cv2.imwrite(
-                f"{output_dir}/screenshot{screenshot_number}.jpg", frame)
+            cv2.imwrite(f"{output_dir}/screenshot{screenshot_number}.jpg", frame)
             screenshot_number += 1
 
     async def split_video_into_scenes(self, video_path, output_dir=None, threshold=1):
         # Open our video, create a scene manager, and add a detector.
-        self.logger.debug(
-            f"Finding scenes for {video_path}, threshold {threshold}")
+        self.logger.debug(f"Finding scenes for {video_path}, threshold {threshold}")
 
         if await self.is_video_file_valid(video_path):
             video = open_video(video_path)
 
             scene_manager = SceneManager()
-            scene_manager.add_detector(
-                AdaptiveDetector(adaptive_threshold=threshold))
+            scene_manager.add_detector(AdaptiveDetector(adaptive_threshold=threshold))
             scene_manager.detect_scenes(video, show_progress=True)
             scene_list = scene_manager.get_scene_list()
-            filename, file_extension = os.path.splitext(
-                os.path.basename(video_path))
+            filename, file_extension = os.path.splitext(os.path.basename(video_path))
             self.logger.debug(f"Scenes {len(scene_list)}.")
             output_dir = output_dir + "/" + filename
             if len(scene_list) > fm_config.MIN_SCENES:
                 save_images(
-                    scene_list=scene_list, video=video, output_dir=output_dir, num_images=1
+                    scene_list=scene_list,
+                    video=video,
+                    output_dir=output_dir,
+                    num_images=1,
                 )
             else:
                 self.logger.info(
-                    f"Limited number of scenes found: {video_path}, threshold {threshold}. Proceeding with time-fixed sampling strategy: {fm_config.SAMPLING_STRATEGY}")
+                    f"Limited number of scenes found: {video_path}, threshold {threshold}. Proceeding with time-fixed sampling strategy: {fm_config.SAMPLING_STRATEGY}"
+                )
                 await self.spaced_sampling(video_path, output_dir)
 
     async def extract_audio(self, fname, tmp_folder):
@@ -304,85 +316,83 @@ class ProcessMedia:
         "lightgray": "light gray",
         "lightgrey": "light gray",
         "lightgreen": "light green",
-        'lightgoldenrodyellow': 'yellow',
-        'lightgray': 'gray',
-        'lightgreen': 'green',
-        'lightgrey': 'gray',
-        'lightpink': 'pink',
-        'lightsalmon': 'orange',
-        'lightseagreen': 'green',
-        'lightskyblue': 'blue',
-        'lightslategray': 'gray',
-        'lightslategrey': 'gray',
-        'lightsteelblue': 'blue',
-        'lightyellow': 'yellow',
-        'lime': 'green',
-        'limegreen': 'green',
-        'linen': 'beige',
-        'magenta': 'pink',
-        'maroon': 'brown',
-        'mediumaquamarine': 'green',
-        'mediumblue': 'blue',
-        'mediumorchid': 'purple',
-        'mediumpurple': 'purple',
-        'mediumseagreen': 'green',
-        'mediumslateblue': 'blue',
-        'mediumspringgreen': 'green',
-        'mediumturquoise': 'blue',
-        'mediumvioletred': 'red',
-        'midnightblue': 'blue',
-        'mintcream': 'white',
-        'mistyrose': 'pink',
-        'moccasin': 'yellow',
-        'navajowhite': 'beige',
-        'navy': 'blue',
-        'oldlace': 'beige',
-        'olive': 'green',
-        'olivedrab': 'green',
-        'orange': 'orange',
-        'orangered': 'red',
-        'orchid': 'purple',
-        'palegoldenrod': 'yellow',
-        'palegreen': 'green',
-        'paleturquoise': 'blue',
-        'palevioletred': 'red',
-        'papayawhip': 'beige',
-        'peachpuff': 'orange',
-        'peru': 'brown',
-        'pink': 'pink',
-        'plum': 'purple',
-        'powderblue': 'blue',
-        'purple': 'purple',
-        'red': 'red',
-        'rosybrown': 'brown',
-        'royalblue': 'blue',
-        'saddlebrown': 'brown',
-        'salmon': 'orange',
-        'sandybrown': 'orange',
-        'seagreen': 'green',
-        'seashell': 'beige',
-        'sienna': 'brown',
-        'silver': 'gray',
-        'skyblue': 'blue',
-        'slateblue': 'blue',
-        'slategray': 'gray',
-        'slategrey': 'gray',
-        'snow': 'white',
-        'springgreen': 'green',
-        'steelblue': 'blue',
-        'tan': 'brown',
-        'teal': 'green',
-        'thistle': 'purple',
-        'tomato': 'red',
-        'turquoise': 'blue',
-        'violet': 'purple',
-        'wheat': 'beige',
-        'white': 'white',
-        'whitesmoke': 'gray',
-        'yellow': 'yellow',
-        'yellowgreen': 'green'
-
-
+        "lightgoldenrodyellow": "yellow",
+        "lightgray": "gray",
+        "lightgreen": "green",
+        "lightgrey": "gray",
+        "lightpink": "pink",
+        "lightsalmon": "orange",
+        "lightseagreen": "green",
+        "lightskyblue": "blue",
+        "lightslategray": "gray",
+        "lightslategrey": "gray",
+        "lightsteelblue": "blue",
+        "lightyellow": "yellow",
+        "lime": "green",
+        "limegreen": "green",
+        "linen": "beige",
+        "magenta": "pink",
+        "maroon": "brown",
+        "mediumaquamarine": "green",
+        "mediumblue": "blue",
+        "mediumorchid": "purple",
+        "mediumpurple": "purple",
+        "mediumseagreen": "green",
+        "mediumslateblue": "blue",
+        "mediumspringgreen": "green",
+        "mediumturquoise": "blue",
+        "mediumvioletred": "red",
+        "midnightblue": "blue",
+        "mintcream": "white",
+        "mistyrose": "pink",
+        "moccasin": "yellow",
+        "navajowhite": "beige",
+        "navy": "blue",
+        "oldlace": "beige",
+        "olive": "green",
+        "olivedrab": "green",
+        "orange": "orange",
+        "orangered": "red",
+        "orchid": "purple",
+        "palegoldenrod": "yellow",
+        "palegreen": "green",
+        "paleturquoise": "blue",
+        "palevioletred": "red",
+        "papayawhip": "beige",
+        "peachpuff": "orange",
+        "peru": "brown",
+        "pink": "pink",
+        "plum": "purple",
+        "powderblue": "blue",
+        "purple": "purple",
+        "red": "red",
+        "rosybrown": "brown",
+        "royalblue": "blue",
+        "saddlebrown": "brown",
+        "salmon": "orange",
+        "sandybrown": "orange",
+        "seagreen": "green",
+        "seashell": "beige",
+        "sienna": "brown",
+        "silver": "gray",
+        "skyblue": "blue",
+        "slateblue": "blue",
+        "slategray": "gray",
+        "slategrey": "gray",
+        "snow": "white",
+        "springgreen": "green",
+        "steelblue": "blue",
+        "tan": "brown",
+        "teal": "green",
+        "thistle": "purple",
+        "tomato": "red",
+        "turquoise": "blue",
+        "violet": "purple",
+        "wheat": "beige",
+        "white": "white",
+        "whitesmoke": "gray",
+        "yellow": "yellow",
+        "yellowgreen": "green",
     }
 
     async def closest_color(self, requested_color):
@@ -410,7 +420,7 @@ class ProcessMedia:
         # Reshape the array to a 2D array of pixels
         pixels = pixels.reshape(-1, 3)
         # Apply K-means clustering to find the dominant colors
-        kmeans = KMeans(n_clusters=k, n_init='auto').fit(pixels)
+        kmeans = KMeans(n_clusters=k, n_init="auto").fit(pixels)
         # Get the colors of the cluster centers
         colors = kmeans.cluster_centers_
         # Get the count of pixels assigned to each cluster
@@ -418,8 +428,10 @@ class ProcessMedia:
         # Sort the colors by frequency
         sorted_colors = colors[np.argsort(-counts)]
         # Convert the color values to integers and map to color names
-        color_names = [await self.closest_color(np.round(color).astype(int))
-                       for color in sorted_colors]
+        color_names = [
+            await self.closest_color(np.round(color).astype(int))
+            for color in sorted_colors
+        ]
 
         # Return the top n colors
         top_colors = color_names[:n]
@@ -430,13 +442,9 @@ class ProcessMedia:
                 simpleColors.append(self.COLORS[color])
         except:
             pass
-        top_colors += (simpleColors)
+        top_colors += simpleColors
         top_colors = list(set(top_colors))
-        self.logger.info(
-            "|Top Colors|: "
-            + str(top_colors)
-
-        )
+        self.logger.info("|Top Colors|: " + str(top_colors))
 
         return top_colors
 
@@ -513,14 +521,15 @@ class ProcessMedia:
         If you need more robust HTML parsing, you may want to consider using
          a dedicated HTML parsing library like Beautiful Soup.
         """
-        pattern = re.compile(
-            r'<(?!/?({}))[^>]*>'.format('|'.join(allowed_tags)))
-        a = pattern.sub('', s).replace('"', '').replace('\n', '')
-        return re.sub(r'\s{2,}', ' ', a)
+        pattern = re.compile(r"<(?!/?({}))[^>]*>".format("|".join(allowed_tags)))
+        a = pattern.sub("", s).replace('"', "").replace("\n", "")
+        return re.sub(r"\s{2,}", " ", a)
 
     import subprocess
 
-    async def write_keywords_metadata_to_image_file(self, fname, keywords=[], caption="", subject=""):
+    async def write_keywords_metadata_to_image_file(
+        self, fname, keywords=[], caption="", subject=""
+    ):
         keyCount = 0
         keyNames = ""
         command = ["exiftool", "-q", "-overwrite_original"]
@@ -553,7 +562,8 @@ class ProcessMedia:
         command.append(str(fname))
 
         self.logger.debug(
-            f"|write_keywords_metadata_to_image_file| Command: {' '.join(command)}")
+            f"|write_keywords_metadata_to_image_file| Command: {' '.join(command)}"
+        )
 
         try:
             subprocess.run(command, check=True)
@@ -562,8 +572,7 @@ class ProcessMedia:
                 f"|write_keywords_metadata_to_image_file| {keyCount} keywords added: {keyNames} to '{str(fname)}'"
             )
         except subprocess.CalledProcessError as e:
-            self.logger.error(
-                f"|write_keywords_metadata_to_image_file| Error: {e}")
+            self.logger.error(f"|write_keywords_metadata_to_image_file| Error: {e}")
 
     async def write_keywords_metadata_to_video_file(
         self, file_path, keywords, description
@@ -616,29 +625,28 @@ class ProcessMedia:
 
         new_file = f"{pathlib.Path(file_path).parent}/{pathlib.Path(file_path).stem}_new{pathlib.Path(file_path).suffix}"
         ffmpeg_cmd += f'-c copy "{new_file}"'
-        self.logger.debug(
-            f"|write_keywords_metadata_to_video_file|: {ffmpeg_cmd}")
+        self.logger.debug(f"|write_keywords_metadata_to_video_file|: {ffmpeg_cmd}")
         try:
             command_run = subprocess.call(ffmpeg_cmd, shell=True)
             if command_run == 0:
                 self.logger.info(
-                    f"|write_keywords_metadata_to_video_file| keywords successfully written: {ffmpeg_cmd}")
+                    f"|write_keywords_metadata_to_video_file| keywords successfully written: {ffmpeg_cmd}"
+                )
                 os.remove(file_path)
                 os.rename(f"{new_file}", file_path)
             else:
                 self.logger.error(
-                    f"|write_keywords_metadata_to_video_file| The following command generated an error: {ffmpeg_cmd}")
+                    f"|write_keywords_metadata_to_video_file| The following command generated an error: {ffmpeg_cmd}"
+                )
             await self.change_permissions(str(file_path))
 
         except Exception as e:
-            self.logger.error(
-                f"|write_keywords_metadata_to_video_file| Error: {e}")
+            self.logger.error(f"|write_keywords_metadata_to_video_file| Error: {e}")
 
     async def id_obj_image(self, fname, returnTag=False):
         import ast
 
-        self.logger.debug(
-            f"|OBJ ID Image| Starting identification: '{str(fname)}'")
+        self.logger.debug(f"|OBJ ID Image| Starting identification: '{str(fname)}'")
         text = ""
 
         try:
@@ -667,8 +675,7 @@ class ProcessMedia:
 
             data = json.loads(response)
 
-            inference = json.loads(
-                data["output"]["inference"].replace("'", '"'))
+            inference = json.loads(data["output"]["inference"].replace("'", '"'))
             unique_cls = list(set([d["cls"] for d in inference]))
 
             self.logger.info(f"|OBJ ID Image| Text: {str(unique_cls)}")
@@ -679,7 +686,7 @@ class ProcessMedia:
                 tagNames = tagNames + str(cls) + " "
 
             if returnTag:
-                objects = f'{fm_config.OBJECTS_TAG_OPEN}{str(tagNames)}{fm_config.OBJECTS_TAG_CLOSE}'
+                objects = f"{fm_config.OBJECTS_TAG_OPEN}{str(tagNames)}{fm_config.OBJECTS_TAG_CLOSE}"
             else:
                 objects = unique_cls
             return objects
@@ -709,8 +716,7 @@ class ProcessMedia:
 
             ocr = json.loads(r.decode("utf-8"))
             # self.logger.info(f"|OCR Image| Text: {str(ocr['full_text'])}")
-            self.logger.info(
-                f'|OCR Image| successfull: {str(ocr["full_text"])}')
+            self.logger.info(f'|OCR Image| successfull: {str(ocr["full_text"])}')
             if returnTag:
                 ocrResult = f'{fm_config.OCR_TAG_OPEN}{str(ocr["full_text"])}{fm_config.OCR_TAG_CLOSE}'
             else:
@@ -744,13 +750,12 @@ class ProcessMedia:
             model = fm_config.TRANSCRIBE__MODEL_NAME
 
         self.logger.info(
-            f"|Transcribe| Generating transcription for: '{str(fname)}' ({round(fileSize,2)} MB). Model: '{model}'")
+            f"|Transcribe| Generating transcription for: '{str(fname)}' ({round(fileSize,2)} MB). Model: '{model}'"
+        )
 
         try:
 
-            payload = (
-                f'{{"input": {{"audio":"{fm_config.IMAGES_SERVER_URL}{fname}", "model":"{model}"}}}}'
-            )
+            payload = f'{{"input": {{"audio":"{fm_config.IMAGES_SERVER_URL}{fname}", "model":"{model}"}}}}'
 
             payload = (
                 '{"input": {"audio":"'
@@ -769,20 +774,21 @@ class ProcessMedia:
                 fm_config.TRANSCRIBE_API_URL,
                 headers=fm_config.TRANSCRIBE_HEADER,
                 data=payload,
-                timeout=60 * 60 * 3
+                timeout=60 * 60 * 3,
             ).text
 
-            self.logger.debug(
-                f"|Transcribe| Transcribe success, result: {str(r)}")
+            self.logger.debug(f"|Transcribe| Transcribe success, result: {str(r)}")
 
             transcription = json.loads(r)
             # transcription = json.loads(r.decode("utf-8"))
             self.logger.info(
-                f"|Transcribe| Transcription generated for file: {fname}: {transcription['output']['transcription'][:100]}")
+                f"|Transcribe| Transcription generated for file: {fname}: {transcription['output']['transcription'][:100]}"
+            )
 
         except Exception as e:
             self.logger.error(
-                f"|Transcription| Transcription unsuccessful: {e} {fname}")
+                f"|Transcription| Transcription unsuccessful: {e} {fname}"
+            )
 
         if returnTag:
             transcription = f'{fm_config.TRANSCRIBE_TAG_OPEN}{str(transcription["output"]["transcription"])}{fm_config.TRANSCRIBE_TAG_CLOSE}'
@@ -792,8 +798,7 @@ class ProcessMedia:
         return transcription
 
     async def caption_image(self, fname, returnTag=False):
-        self.logger.debug(
-            f"|Caption Image| Generating caption for: '{str(fname)}'")
+        self.logger.debug(f"|Caption Image| Generating caption for: '{str(fname)}'")
         try:
             payload = (
                 '{"input": {"image":"'
@@ -829,6 +834,87 @@ class ProcessMedia:
             # resize_with_aspect_ratio(
             #     file_path, max_width=None, max_height=None, format=None
             # ):
+    
+    async def resize_image(self, image_path, max_width=1980):
+        import tempfile
+        from PIL import Image
+
+        try:
+            # Open the image
+            image = Image.open(image_path)
+            
+            # Get the original dimensions
+            width, height = image.size
+            
+            # Calculate the new height based on the specified max width
+            new_height = int((max_width / width) * height)
+            
+            # Resize the image
+            resized_image = image.resize((max_width, new_height), Image.LANCZOS)
+            
+            # Create a temporary file to save the resized image
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+                # Save the resized image to the temporary file
+                resized_image.save(temp_file, format='JPEG', quality=90)
+                return temp_file.name
+        except Exception as e:
+            # Handle any exceptions that may occur during resizing
+            print(f"An exception occurred while resizing the image: {str(e)}")
+            return None
+
+    async def comment_image(self, fname):
+        import replicate
+        # print("COMMENT")
+        prompt = fm_config.PROMPT
+                
+        import tempfile
+        import shutil
+
+        # Step 1: Resize the image and save it to a temporary file
+        try:
+            resized_fname = await self.resize_image(fname)
+            # print(resized_fname[:300])
+        except Exception as e:
+            error_message = f"An exception occurred while resizing the image {fname}: {str(e)}"
+            self.logger.error(error_message)
+            
+            # return
+        # print("Step1")
+        # Log the content of the resized file (limited to the first 300 characters)
+        with open(resized_fname, "rb") as resized_file:
+            resized_data = resized_file.read()
+            self.logger.debug("Resized file content (first 300 characters):")
+            self.logger.debug(resized_data[:300])
+        # print("Step2")
+        # Step 2: Save the resized image to a temporary file using shutil
+        with open(resized_fname, "rb") as resized_file:
+            # Create a temporary file to save the resized image
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                # Copy the resized file to the temporary file
+                shutil.copyfileobj(resized_file, temp_file)
+                temp_file_path = temp_file.name
+        # print("Step3")
+        # Log the content of the temporary file (limited to the first 300 characters)
+        with open(temp_file_path, "rb") as temp_file:
+            temp_file_data = temp_file.read()
+            self.logger.debug("Temporary file content (first 300 characters):")
+            self.logger.debug(temp_file_data[:300])
+            print(temp_file_data[:300])
+        # print("Step4")
+        output = replicate.run(
+            "daanelson/minigpt-4:b96a2f33cc8e4b0aa23eacfce731b9c41a7d9466d9ed4e167375587b54db9423",
+            input={
+                "prompt": prompt,
+                "image": open(temp_file_path, "rb"),
+                "num_beams": 5,
+                "temperature": 1.32,
+                "top_p": 0.9,
+                "repetition_penalty": 1,
+                "max_new_tokens": 3000,
+                "max_length": 4000,
+            },
+        )
+        return output
 
     async def tag_image(self, fname):
         self.logger.debug("|Tag Image| Image tagging started: " + str(fname))
@@ -852,7 +938,7 @@ class ProcessMedia:
 
         post_model_outputs_response = stub.PostModelOutputs(
             service_pb2.PostModelOutputsRequest(
-                model_id='general-image-recognition',
+                model_id="general-image-recognition",
                 # model_id="aaa03c23b3724a16a56b629203edc62c",
                 inputs=[
                     resources_pb2.Input(
@@ -889,15 +975,15 @@ class ProcessMedia:
             tagNames.append(concept.name)
 
         if len(tagNames) > 0:
-            self.logger.info(
-                f"|Tag Image| {tagCount} tags generated: " + str(tagNames))
+            self.logger.info(f"|Tag Image| {tagCount} tags generated: " + str(tagNames))
         return tagNames
 
     async def reverse_geotag(self, fname):
 
         try:
             output = subprocess.check_output(
-                f"exiftool -c '%.9f' -GPSPosition '{fname}'", shell=True)
+                f"exiftool -c '%.9f' -GPSPosition '{fname}'", shell=True
+            )
             temp = re.findall(r"\d+", output.decode())
             lat = temp[0] + "." + temp[1]
             lon = temp[2] + "." + temp[3]
@@ -907,19 +993,23 @@ class ProcessMedia:
             response.raise_for_status()
 
             data = response.json()
-            reverse_geo = [value for key, value in data["results"]
-                           [0]["components"].items()]
+            reverse_geo = [
+                value for key, value in data["results"][0]["components"].items()
+            ]
             self.logger.info(
-                "|Reverse Geocode| Reverse geocoding successful: " + str(reverse_geo))
+                "|Reverse Geocode| Reverse geocoding successful: " + str(reverse_geo)
+            )
 
         except subprocess.CalledProcessError as e:
             self.logger.error(
-                f"|Reverse Geocode| Failed to extract GPS info for {fname}: {e}")
+                f"|Reverse Geocode| Failed to extract GPS info for {fname}: {e}"
+            )
             return []
 
         except (requests.RequestException, json.JSONDecodeError) as e:
             self.logger.error(
-                f"|Reverse Geocode| Failed to reverse geocode {fname}: {e}")
+                f"|Reverse Geocode| Failed to reverse geocode {fname}: {e}"
+            )
             return []
 
         return list(reverse_geo)
@@ -936,20 +1026,21 @@ class ProcessMedia:
         face_locations = face_recognition.face_locations(image)
 
         self.logger.info(
-            f"|saFaces| I found {len(face_locations)} face(s) in this photograph.")
+            f"|saFaces| I found {len(face_locations)} face(s) in this photograph."
+        )
 
         for face_location in face_locations:
 
             # Print the location of each face in this image
             top, right, bottom, left = face_location
             self.logger.info(
-                f"A face is located at pixel location Top: {top}, Left: {left}, Bottom: {bottom}, Right: {right}")
+                f"A face is located at pixel location Top: {top}, Left: {left}, Bottom: {bottom}, Right: {right}"
+            )
 
             # You can access the actual face itself like this:
             face_image = image[top:bottom, left:right]
             pil_image = Image.fromarray(face_image)
-            pil_image.save(
-                f"{fm_config.UNKNOWN_FACE_FOLDER}int({time.time}).jpg")
+            pil_image.save(f"{fm_config.UNKNOWN_FACE_FOLDER}int({time.time}).jpg")
 
     async def classify_faces(self, fname):
         encodings = []
@@ -982,8 +1073,7 @@ class ProcessMedia:
                 )
                 train_dir = os.listdir(fm_config.FACE_CLASSIFIER_TRAIN_DIR)
                 for person in train_dir:
-                    pix = os.listdir(
-                        fm_config.FACE_CLASSIFIER_TRAIN_DIR + str(person))
+                    pix = os.listdir(fm_config.FACE_CLASSIFIER_TRAIN_DIR + str(person))
                     # Loop through each training image for the current person
                     for person_img in pix:
                         # Get the face encodings for the face in each image file
@@ -993,8 +1083,7 @@ class ProcessMedia:
                             + "/"
                             + person_img
                         )
-                        face_bounding_boxes = face_recognition.face_locations(
-                            face)
+                        face_bounding_boxes = face_recognition.face_locations(face)
 
                         # If training image contains exactly one face
                         if len(face_bounding_boxes) == 1:
@@ -1037,7 +1126,8 @@ class ProcessMedia:
                 if name[0] not in names:
                     names.append(name[0])
                     self.logger.info(
-                        f"|Classify Faces|: Face detected but not recognized. ")
+                        f"|Classify Faces|: Face detected but not recognized. "
+                    )
                     # Cropping saved to: '{fm_config.UNKNOWN_FACE_FOLDER}'.")
                     # self.saveFaces()
 
@@ -1055,12 +1145,10 @@ class ProcessMedia:
                 + "'"
             )
             os.system(command)
-            self.logger.info(
-                "|Copy to IPTC| Tags copied to IPTC: " + str(fname))
+            self.logger.info("|Copy to IPTC| Tags copied to IPTC: " + str(fname))
         except Exception as e:
             self.logger.error(
-                "|Copy to IPTC| Copy tags unsuccessful: " +
-                str(e) + " " + str(fname)
+                "|Copy to IPTC| Copy tags unsuccessful: " + str(e) + " " + str(fname)
             )
 
     def find_FileModifyDate(self, fname):
@@ -1071,7 +1159,7 @@ class ProcessMedia:
         )
 
         command_output = command_output.replace("\\n", "")
-        date = command_output[len(command_output) - 8: len(command_output) - 1]
+        date = command_output[len(command_output) - 8 : len(command_output) - 1]
         return date
 
     def create_json(self, fname):
@@ -1084,8 +1172,7 @@ class ProcessMedia:
             + ".json"
         )
         os.system(command)
-        f = str(os.path.dirname(fname)) + "/" + \
-            os.path.basename(fname) + ".json"
+        f = str(os.path.dirname(fname)) + "/" + os.path.basename(fname) + ".json"
         f = fm_config.JSON_FOLDER + os.path.basename(fname) + ".json"
         # print(f)
         os.chmod(f, 0o777)
@@ -1095,8 +1182,7 @@ class ProcessMedia:
         command = ""
         # Add document to search engine
         command = (
-            fm_config.SOLR_POST_EXE + " -c " +
-            collection + " '" + str(fname) + "'"
+            fm_config.SOLR_POST_EXE + " -c " + collection + " '" + str(fname) + "'"
         )
         os.system(command)
 
@@ -1126,8 +1212,7 @@ class ProcessMedia:
                 face_locations = face_recognition.face_locations(imageArray)
 
                 self.logger.info(
-                    "I found {} face(s) in {}".format(
-                        len(face_locations), str(fname))
+                    "I found {} face(s) in {}".format(len(face_locations), str(fname))
                 )
 
                 for face_location in face_locations:
@@ -1166,7 +1251,96 @@ class ProcessMedia:
             except:
                 self.logger.error("No picture or error")
 
+
+# START of rating functions
+    async def exif_rating(self,image_path):
+        r = ""
+        try:
+            # Call exiftool targeting the 'Rating' tag and capture the output
+            result = subprocess.run(
+                ["exiftool", "-Rating", image_path], stdout=subprocess.PIPE, text=True
+            )
+
+            # Parse and print the rating value
+            if "Rating" in result.stdout:
+                r = result.stdout.split(":")[1].strip()
+            else:
+                r = 0
+            self.logger.info(f"|exif_rating| Rating: {r}")
+        
+        except Exception as e:
+            self.logger.error(f"|exif_rating| Error: {e}")
+           
+        return int(r)
+
+
+    async def set_rating(self,rating, fname):
+        # Construct the ExifTool command
+        command = f"exiftool -overwrite_original -Rating={rating} '{fname}'"
+
+        # Run the command
+        subprocess.run(command, shell=True, check=True)
+        self.logger.info(f"|set_rating| Rating set to {rating} for {fname}")
+
+
+
+    async def get_rating(self,fname):
+        output_value = 0
+        # Define the payload
+        payload = {"input": {"input_image": fm_config.IMAGES_SERVER_URL + fname}}
+
+        # Make the POST request
+        response = requests.post(fm_config.IMAGE_RATING_URL, headers=fm_config.IMAGE_RATING_HEADERS, data=json.dumps(payload))
+
+        # Check the response
+        if response.status_code == 200:
+            data = response.json()
+
+            # Check if the 'status' key is 'succeeded'
+            if data.get("status") == "succeeded":
+                output_value = data.get("output")
+                # print("Success: The output value is", output_value)
+            else:
+                self.logger.error(f"Failed: The task did not succeed. Status:  {data.get('status')}")
+        else:
+            self.logger.error(f"Failed: HTTP Response Code {response.status_code}, {response.text}")
+        return output_value
+
+
+    async def map_ranking(self, original_rank):
+        # Inverting the original rank as 1 is great and 100 is bad
+        inverted_rank = 101 - original_rank
+
+        # Mapping the inverted rank to the range [1, 5]
+        # Since inverted_rank is in [1, 100], we divide it by 20 to get it in the range [1, 5]
+        mapped_rank = inverted_rank / 20
+
+        # Rounding to the nearest integer to get a rank between 1 and 5
+        final_rank = round(mapped_rank)
+
+        # Ensuring that the final rank is within the bounds [1, 5]
+        final_rank = max(1, min(final_rank, 5))
+
+        return final_rank
+
+    async def generate_rating(self,fname):
+    # Call the get_rating function for the image
+        mapped=""
+        hu_r = await self.exif_rating(str(fname))
+        if hu_r == 0 or fm_config.OVERWRITE_RATING:
+            # and not fm_config.OVERWRITE_RANK:
+            ai_r = await self.get_rating(str(fname))
+            if ai_r > 0:
+                mapped = int(await self.map_ranking(ai_r))
+            try:
+                await self.set_rating(mapped, fname)
+                self.logger.info(f"|generate_rating| {fname}, {ai_r}, {hu_r}, {mapped}, {(hu_r-mapped)}")
+            except Exception as e:
+                self.logger.error(f"|generate_rating|  {e}")
+        return mapped
+       
     def batch_process_media(
         self, origPath, destPath, tag_image, tag_media, reverse_geotag, move
     ):
         self.logger.info("Batch process")
+# END of rating functions

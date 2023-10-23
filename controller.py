@@ -4,8 +4,10 @@
 # Test
 # python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 
+# DEV
+# screen python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 
-# ERRORS: video process colors are not cpatured correctley, GS reverse GEO does not work
+# ERRORS: video process colors are not captured correctley, GS reverse GEO does not work
 
 import asyncio
 import os
@@ -83,6 +85,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
         stop_timer.start()
 
         caption = ""
+        comment = ""
         faces = []
         ocr = ""
         objects = []
@@ -91,6 +94,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
         imageTags = []
         KW = []
         transcription = ""
+        rank=""
 
         # IMAGE WORKFLOW
         # TO DO: remove file tagging from each function adn add a separate one like in the video workflow
@@ -109,6 +113,14 @@ async def process_media(imagesQueue, processMedia, logger, args):
                     reverseGeo = await processMedia.reverse_geotag(file_path)
                 except Exception as e:
                     logger.error(f"|reverse_geotag| Error: {e}")
+
+            if args.commentImage == "True":
+                try:
+
+                    # Comment image
+                    comment = str(await processMedia.comment_image(file_path))
+                except Exception as e:
+                    logger.error(f"|Comment| Error: {e}")
             if args.captionImage == "True":
                 try:
                     # Caption image
@@ -146,6 +158,14 @@ async def process_media(imagesQueue, processMedia, logger, args):
 
                 except Exception as e:
                     logger.error(f"|getColorsImage| Error: {e}")
+
+            if args.rateImage == "True":
+                try:
+                    rate = await processMedia.generate_rating(file_path)
+
+                except Exception as e:
+                    logger.error(f"|rateImage| Error: {e}")
+
             if args.writeTagToImage == "True":
                 if reverseGeo is not None:
                     KW += reverseGeo
@@ -160,9 +180,14 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 noOCR = "None"
                 if ocr == noOCR:
                     ocr = ""
+                if comment:
+                    caption = caption + "\n" + comment
 
                 await processMedia.write_keywords_metadata_to_image_file(
-                    file_path, keywords=KW, caption=str(caption), subject=ocr
+                    file_path,
+                    keywords=KW,
+                    caption=str(caption) + "\n" + str(comment),
+                    subject=ocr,
                 )
                 if fm_config.COPY_TAGS_TO_IPTC == True:
                     await processMedia.copy_tags_to_IPTC(file_path)
@@ -188,6 +213,10 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 ocr = []
                 objects = []
                 transcription = ""
+                imageTags=""
+                reverseGeo=""
+                colors=""
+                rate=""
 
                 for file in sorted(os.listdir(tmpPath), key=str.lower):
                     file = os.path.abspath(os.path.join(Path(tmpPath), file))
@@ -289,6 +318,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 logger.error(
                     f"|VideoWorkflow| =====> WORKFLOW ERROR <===== File '{file_path}' not changed"
                 )
+
         logger.info(f"Transcription: {transcription}|")
         logger.info(f"Caption: {caption}")
         logger.info(f"Keywords: {imageTags}")
@@ -297,6 +327,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
         logger.info(f"OCR: {ocr}")
         logger.info(f"Objects: {objects}")
         logger.info(f"Colors: {colors}|")
+        logger.info(f"Rate: {rate}|")
 
         imagesQueue.task_done()
         stop_timer.stop()

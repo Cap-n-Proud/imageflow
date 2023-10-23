@@ -93,6 +93,7 @@ PRE_PROCESS_ORIG = "/mnt/Photos/000-InstantUpload/"
 # --------------------------- Workflow config ---------------------------
 
 CAPTION_IMAGE = "True"
+COMMENT_IMAGE = "True"
 TAG_IMAGE = "True"
 REVERSE_GEOTAG = "True"
 CLASSIFY_FACES = "True"
@@ -100,19 +101,22 @@ OCR_IMAGE = "True"
 COPY_TAGS_TO_IPTC = "False"
 GET_COLORS_IMAGE = "True"
 ID_OBJ = "True"
-MOVE_FILE_IMAGE = "False"
+RATE_IMAGE = "True"
+MOVE_FILE_IMAGE = "True"
 WRITE_TAGS_TO_IMAGE = "True"
 
-# CAPTION_IMAGE = False
-# TAG_IMAGE = False
-# REVERSE_GEOTAG = False
-# CLASSIFY_FACES = False
-# OCR_IMAGE = True
-# COPY_TAGS_TO_IPTC = False
-# GET_COLORS_IMAGE = False
-# ID_OBJ = False
-# MOVE_FILE_IMAGE = False
-# WRITE_TAGS_TO_IMAGE = True
+CAPTION_IMAGE = False
+COMMENT_IMAGE = False
+TAG_IMAGE = False
+REVERSE_GEOTAG = False
+CLASSIFY_FACES = False
+OCR_IMAGE = True
+COPY_TAGS_TO_IPTC = False
+GET_COLORS_IMAGE = False
+ID_OBJ = False
+RATE_IMAGE = "True"
+MOVE_FILE_IMAGE = False
+WRITE_TAGS_TO_IMAGE = False
 
 CAPTION_VIDEO = "True"
 REVERSE_GEOTAG_VIDEO = "True"
@@ -169,12 +173,20 @@ CLS_MODEL_DIR = (
 USE_ANCLE_CLS = True
 IMG_OCR_LANG = "en"
 
+# --------------------------- Image rating --------------------------
+IMAGE_RATING_URL = "http://192.168.1.121:9997/predictions"
+OVERWRITE_RATING="False"
+IMAGE_RATING_HEADERS = {"Content-Type": "application/json"}
+
+# --------------------------- GPT --------------------------
+
+PROMPT = "Please generate a vivid description of the attached image, including the emotions and feelings it evokes. Additionally, provide a commentary on the photographic style employed and the overall quality of the image. Feel free to explore the composition, lighting, colors, and any other relevant aspects that contribute to the image impact. Your description should capture both the tangible elements of the scene and the intangible emotions it conveys, while also critically assessing the technical and artistic prowess demonstrated in the photograph."
+PROMPT = "Please generate a vivid description of the attached image, identify and name the landmarks or city depicted. Describe the emotions and feelings the image evokes.   Additionally, provide a commentary on the photographic style employed and the overall quality of the image. Feel free to explore the composition, lighting, colors, and any other relevant aspects that contribute to the image's impact. Your description should capture both the tangible elements of the scene and the intangible emotions it conveys, while also critically assessing the technical and artistic prowess demonstrated in the photograph."
 # --------------------------- Image OBJ ID --------------------------
 OBJ_ID_HEADER = {"content-type": "application/json"}
 OBJ_ID_API_URL = "http://192.168.1.121:9998/predictions"
 OBJ_ID__MODEL_NAME = "yolox-x"
 OBJ_ID__MIN_CONFIDENCE = 0.6
-
 
 RAMDISK_DIR = "/mnt/Photos/001-Process/tmp/"
 RAMDISK_SIZE_MB = 512

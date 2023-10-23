@@ -15,28 +15,46 @@ workflow_group.add_argument(
     "--captionImage",
     help=f"Caption image [True/False]. Default is: {fm_config.CAPTION_IMAGE}",
     default=fm_config.CAPTION_IMAGE,
-    choices=('True', 'False')
+    choices=("True", "False"),
+)
+workflow_group.add_argument(
+    "--rateImage",
+    help=f"Rate image [True/False]. Default is: {fm_config.RATE_IMAGE}",
+    default=fm_config.RATE_IMAGE,
+    choices=("True", "False"),
+)
+workflow_group.add_argument(
+    "--overwriteRating",
+    help=f"Overwrite existing rate [True/False]. Default is: {fm_config.OVERWRITE_RATING}",
+    default=fm_config.OVERWRITE_RATING,
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wid",
     "--idObjImage",
     help=f"Identify objects in image [True/False]. Default is: {fm_config.ID_OBJ}",
     default=fm_config.ID_OBJ,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wm",
     "--moveFileImage",
     help=f"Move file [True/False]. Default is: {fm_config.MOVE_FILE_IMAGE}",
     default=fm_config.MOVE_FILE_IMAGE,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wt",
     "--tagImage",
     help=f"Tag image [True/False]. Default is: {fm_config.TAG_IMAGE}",
     default=fm_config.TAG_IMAGE,
-    choices=('True', 'False')
+    choices=("True", "False"),
+)
+workflow_group.add_argument(
+    "--commentImage",
+    help=f"Comment image [True/False]. Default is: {fm_config.COMMENT_IMAGE}",
+    default=fm_config.COMMENT_IMAGE,
+    choices=("True", "False"),
 )
 
 workflow_group.add_argument(
@@ -44,42 +62,42 @@ workflow_group.add_argument(
     "--writeTagToImage",
     help=f"Write tags to image [True/False]. Default is: {fm_config.WRITE_TAGS_TO_IMAGE}",
     default=fm_config.WRITE_TAGS_TO_IMAGE,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wr",
     "--reverseGeotag",
     help=f"Reverse geocoding image [True/False]. Default is: {fm_config.REVERSE_GEOTAG}",
     default=fm_config.REVERSE_GEOTAG,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wf",
     "--classifyFaces",
     help=f"Find and classify faces in image [True/False]. Default is: {fm_config.CLASSIFY_FACES}",
     default=fm_config.CLASSIFY_FACES,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wo",
     "--ocrImage",
     help=f"Perform scene OCR in image [True/False]. Default is: {fm_config.OCR_IMAGE}",
     default=fm_config.OCR_IMAGE,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wgc",
     "--getColorsImage",
     help=f"Identify main colors in video [True/False]. Default is: {fm_config.GET_COLORS_IMAGE}",
     default=fm_config.GET_COLORS_IMAGE,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wi",
     "--copyTagsToIPTC",
     help=f"Copy Exif tags to IPTC space. Default is: {fm_config.COPY_TAGS_TO_IPTC}",
     default=fm_config.COPY_TAGS_TO_IPTC,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 
 
@@ -88,56 +106,56 @@ workflow_group.add_argument(
     "--captionVideo",
     help=f"Caption Video [True/False]. Default is: {fm_config.CAPTION_VIDEO}",
     default=fm_config.CAPTION_VIDEO,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-widv",
     "--idObjVideo",
     help=f"Identify objects in video [True/False]. Default is: {fm_config.ID_OBJ_VIDEO}",
     default=fm_config.ID_OBJ_VIDEO,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wgcv",
     "--getColorsVideo",
     help=f"Identify main colors in video [True/False]. Default is: {fm_config.GET_COLORS_VIDEO}",
     default=fm_config.GET_COLORS_VIDEO,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wmv",
     "--moveFileVideo",
     help=f"Move video [True/False]. Default is: {fm_config.MOVE_FILE_VIDEO}",
     default=fm_config.MOVE_FILE_VIDEO,
-    choices=('True', 'False'),
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wrv",
     "--reverseGeotagVideo",
     help=f"Reverse geocoding video [True/False]. Default is: {fm_config.REVERSE_GEOTAG_VIDEO}",
     default=fm_config.REVERSE_GEOTAG_VIDEO,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wfv",
     "--classifyFacesVideo",
     help=f"Find and classify faces in video [True/False]. Default is: {fm_config.CLASSIFY_FACES_VIDEO}",
     default=fm_config.CLASSIFY_FACES_VIDEO,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wov",
     "--ocrVideo",
     help=f"Perform scene OCR in video [True/False]. Default is: {fm_config.OCR_VIDEO}",
     default=fm_config.OCR_VIDEO,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 workflow_group.add_argument(
     "-wtv",
     "--transcribeVideo",
     help=f"Perform scene OCR in video [True/False]. Default is: {fm_config.TRANSCRIBE_VIDEO}",
     default=fm_config.TRANSCRIBE_VIDEO,
-    choices=('True', 'False')
+    choices=("True", "False"),
 )
 
 folders_group.add_argument(
