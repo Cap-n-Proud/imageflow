@@ -834,7 +834,7 @@ class ProcessMedia:
             # resize_with_aspect_ratio(
             #     file_path, max_width=None, max_height=None, format=None
             # ):
-    
+
     async def resize_image(self, image_path, max_width=1980):
         import tempfile
         from PIL import Image
@@ -842,20 +842,20 @@ class ProcessMedia:
         try:
             # Open the image
             image = Image.open(image_path)
-            
+
             # Get the original dimensions
             width, height = image.size
-            
+
             # Calculate the new height based on the specified max width
             new_height = int((max_width / width) * height)
-            
+
             # Resize the image
             resized_image = image.resize((max_width, new_height), Image.LANCZOS)
-            
+
             # Create a temporary file to save the resized image
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
                 # Save the resized image to the temporary file
-                resized_image.save(temp_file, format='JPEG', quality=90)
+                resized_image.save(temp_file, format="JPEG", quality=90)
                 return temp_file.name
         except Exception as e:
             # Handle any exceptions that may occur during resizing
@@ -864,9 +864,10 @@ class ProcessMedia:
 
     async def comment_image(self, fname):
         import replicate
+
         # print("COMMENT")
         prompt = fm_config.PROMPT
-                
+
         import tempfile
         import shutil
 
@@ -875,9 +876,11 @@ class ProcessMedia:
             resized_fname = await self.resize_image(fname)
             # print(resized_fname[:300])
         except Exception as e:
-            error_message = f"An exception occurred while resizing the image {fname}: {str(e)}"
+            error_message = (
+                f"An exception occurred while resizing the image {fname}: {str(e)}"
+            )
             self.logger.error(error_message)
-            
+
             # return
         # print("Step1")
         # Log the content of the resized file (limited to the first 300 characters)
@@ -901,19 +904,33 @@ class ProcessMedia:
             self.logger.debug(temp_file_data[:300])
             print(temp_file_data[:300])
         # print("Step4")
-        output = replicate.run(
-            "daanelson/minigpt-4:b96a2f33cc8e4b0aa23eacfce731b9c41a7d9466d9ed4e167375587b54db9423",
+        # output = replicate.run(
+        #     "daanelson/minigpt-4:b96a2f33cc8e4b0aa23eacfce731b9c41a7d9466d9ed4e167375587b54db9423",
+        #     input={
+        #         "prompt": prompt,
+        #         "image": open(temp_file_path, "rb"),
+        #         "num_beams": 5,
+        #         "temperature": 1.32,
+        #         "top_p": 0.9,
+        #         "repetition_penalty": 1,
+        #         "max_new_tokens": 3000,
+        #         "max_length": 4000,
+        #     },
+        # )
+        o = replicate.run(
+            "yorickvp/llava-13b:e272157381e2a3bf12df3a8edd1f38d1dbd736bbb7437277c8b34175f8fce358",
             input={
                 "prompt": prompt,
                 "image": open(temp_file_path, "rb"),
-                "num_beams": 5,
-                "temperature": 1.32,
-                "top_p": 0.9,
-                "repetition_penalty": 1,
-                "max_new_tokens": 3000,
-                "max_length": 4000,
             },
         )
+        # The yorickvp/llava-13b model can stream output as it's running.
+        # The predict method returns an iterator, and you can iterate over that output.
+        output = ""
+        for item in o:
+            # https://replicate.com/yorickvp/llava-13b/versions/e272157381e2a3bf12df3a8edd1f38d1dbd736bbb7437277c8b34175f8fce358/api#output-schema
+            print(item, end="")
+            output = output + item
         return output
 
     async def tag_image(self, fname):
@@ -979,7 +996,6 @@ class ProcessMedia:
         return tagNames
 
     async def reverse_geotag(self, fname):
-
         try:
             output = subprocess.check_output(
                 f"exiftool -c '%.9f' -GPSPosition '{fname}'", shell=True
@@ -1251,9 +1267,8 @@ class ProcessMedia:
             except:
                 self.logger.error("No picture or error")
 
-
-# START of rating functions
-    async def exif_rating(self,image_path):
+    # START of rating functions
+    async def exif_rating(self, image_path):
         r = ""
         try:
             # Call exiftool targeting the 'Rating' tag and capture the output
@@ -1267,14 +1282,13 @@ class ProcessMedia:
             else:
                 r = 0
             self.logger.info(f"|exif_rating| Rating: {r}")
-        
+
         except Exception as e:
             self.logger.error(f"|exif_rating| Error: {e}")
-           
+
         return int(r)
 
-
-    async def set_rating(self,rating, fname):
+    async def set_rating(self, rating, fname):
         # Construct the ExifTool command
         command = f"exiftool -overwrite_original -Rating={rating} '{fname}'"
 
@@ -1282,15 +1296,17 @@ class ProcessMedia:
         subprocess.run(command, shell=True, check=True)
         self.logger.info(f"|set_rating| Rating set to {rating} for {fname}")
 
-
-
-    async def get_rating(self,fname):
+    async def get_rating(self, fname):
         output_value = 0
         # Define the payload
         payload = {"input": {"input_image": fm_config.IMAGES_SERVER_URL + fname}}
 
         # Make the POST request
-        response = requests.post(fm_config.IMAGE_RATING_URL, headers=fm_config.IMAGE_RATING_HEADERS, data=json.dumps(payload))
+        response = requests.post(
+            fm_config.IMAGE_RATING_URL,
+            headers=fm_config.IMAGE_RATING_HEADERS,
+            data=json.dumps(payload),
+        )
 
         # Check the response
         if response.status_code == 200:
@@ -1301,11 +1317,14 @@ class ProcessMedia:
                 output_value = data.get("output")
                 # print("Success: The output value is", output_value)
             else:
-                self.logger.error(f"Failed: The task did not succeed. Status:  {data.get('status')}")
+                self.logger.error(
+                    f"Failed: The task did not succeed. Status:  {data.get('status')}"
+                )
         else:
-            self.logger.error(f"Failed: HTTP Response Code {response.status_code}, {response.text}")
+            self.logger.error(
+                f"Failed: HTTP Response Code {response.status_code}, {response.text}"
+            )
         return output_value
-
 
     async def map_ranking(self, original_rank):
         # Inverting the original rank as 1 is great and 100 is bad
@@ -1323,9 +1342,9 @@ class ProcessMedia:
 
         return final_rank
 
-    async def generate_rating(self,fname):
-    # Call the get_rating function for the image
-        mapped=""
+    async def generate_rating(self, fname):
+        # Call the get_rating function for the image
+        mapped = ""
         hu_r = await self.exif_rating(str(fname))
         if hu_r == 0 or fm_config.OVERWRITE_RATING:
             # and not fm_config.OVERWRITE_RANK:
@@ -1334,13 +1353,17 @@ class ProcessMedia:
                 mapped = int(await self.map_ranking(ai_r))
             try:
                 await self.set_rating(mapped, fname)
-                self.logger.info(f"|generate_rating| {fname}, {ai_r}, {hu_r}, {mapped}, {(hu_r-mapped)}")
+                self.logger.info(
+                    f"|generate_rating| {fname}, {ai_r}, {hu_r}, {mapped}, {(hu_r-mapped)}"
+                )
             except Exception as e:
                 self.logger.error(f"|generate_rating|  {e}")
         return mapped
-       
+
     def batch_process_media(
         self, origPath, destPath, tag_image, tag_media, reverse_geotag, move
     ):
         self.logger.info("Batch process")
+
+
 # END of rating functions

@@ -1,5 +1,5 @@
 # Docker
-# screen python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
+# screen python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" --captionImage=True --rateImage=True --overwriteRating=False --idObjImage=True --moveFileImage=True --tagImage=True --commentImage=True --writeTagToImage=True --reverseGeotag=True --classifyFaces=True --ocrImage=True --getColorsImage=True --copyTagsToIPTC=False --captionVideo=True --idObjVideo=True --getColorsVideo=True --moveFileVideo=True --reverseGeotagVideo=True --classifyFacesVideo=True --ocrVideo=True --transcribeVideo=True
 
 # Test
 # python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
@@ -22,7 +22,7 @@ import sys
 import argparse
 
 # Importing the script to parse all the arguemnts
-import parser
+import parseArgs
 
 import ProcessMedia
 import StopTimer
@@ -94,10 +94,10 @@ async def process_media(imagesQueue, processMedia, logger, args):
         imageTags = []
         KW = []
         transcription = ""
-        rank=""
+        rate = ""
 
         # IMAGE WORKFLOW
-        # TO DO: remove file tagging from each function adn add a separate one like in the video workflow
+        # TO DO: remove file tagging from each function and add a separate one like in the video workflow
         if file.lower().endswith(args.imageExtensions):
             if args.moveFileImage == "True":
                 file_path = await processMedia.move_file(
@@ -116,9 +116,9 @@ async def process_media(imagesQueue, processMedia, logger, args):
 
             if args.commentImage == "True":
                 try:
-
                     # Comment image
                     comment = str(await processMedia.comment_image(file_path))
+                    print("COMMENT: ", comment)
                 except Exception as e:
                     logger.error(f"|Comment| Error: {e}")
             if args.captionImage == "True":
@@ -213,10 +213,10 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 ocr = []
                 objects = []
                 transcription = ""
-                imageTags=""
-                reverseGeo=""
-                colors=""
-                rate=""
+                imageTags = ""
+                reverseGeo = ""
+                colors = ""
+                rate = ""
 
                 for file in sorted(os.listdir(tmpPath), key=str.lower):
                     file = os.path.abspath(os.path.join(Path(tmpPath), file))
@@ -318,16 +318,24 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 logger.error(
                     f"|VideoWorkflow| =====> WORKFLOW ERROR <===== File '{file_path}' not changed"
                 )
-
-        logger.info(f"Transcription: {transcription}|")
-        logger.info(f"Caption: {caption}")
-        logger.info(f"Keywords: {imageTags}")
-        logger.info(f"Reverse Geo: {reverseGeo}")
-        logger.info(f"Faces: {faces}")
-        logger.info(f"OCR: {ocr}")
-        logger.info(f"Objects: {objects}")
-        logger.info(f"Colors: {colors}|")
-        logger.info(f"Rate: {rate}|")
+        if transcription:
+            logger.info(f"Transcription: {transcription}|")
+        if caption:
+            logger.info(f"Caption: {caption}")
+        if imageTags:
+            logger.info(f"Keywords: {imageTags}")
+        if reverseGeo:
+            logger.info(f"Reverse Geo: {reverseGeo}")
+        if faces:
+            logger.info(f"Faces: {faces}")
+        if ocr:
+            logger.info(f"OCR: {ocr}")
+        if objects:
+            logger.info(f"Objects: {objects}")
+        if colors:
+            logger.info(f"Colors: {colors}|")
+        if rate:
+            logger.info(f"Rate: {rate}|")
 
         imagesQueue.task_done()
         stop_timer.stop()
@@ -370,7 +378,7 @@ async def watch_folder(imagesQueue, args):
 async def main():
     imagesQueue = Queue()
 
-    args, remaining_args = parser.parser.parse_known_args()
+    args, remaining_args = parseArgs.parser.parse_known_args()
     # sys.path.append(args.configFileDirectory)
     # from config import fm_config
 

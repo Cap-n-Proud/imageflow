@@ -1,6 +1,15 @@
 # Application configuration File
 ################################
 
+
+# sys-alpine-webserver  Images  9999
+# img-caption-clip  Caption 9111
+# img-ocr-paddleocr OCR 9011
+# img-eval-test Image rating 9997
+# img-tag-yolox Obj ID 9998
+# vid/audio/whisper Transcribe 9996 5000
+
+
 # Directory To Watch, If not specified, the following value will be considered explicitly.
 # DOCUMENTS_WATCH_DIRECTORY = "/home/paolo/Downloads/"
 IMAGES_WATCH_DIRECTORY = "/mnt/Photos/000-InstantUpload/"
@@ -105,18 +114,18 @@ RATE_IMAGE = "True"
 MOVE_FILE_IMAGE = "True"
 WRITE_TAGS_TO_IMAGE = "True"
 
-CAPTION_IMAGE = False
-COMMENT_IMAGE = False
-TAG_IMAGE = False
-REVERSE_GEOTAG = False
-CLASSIFY_FACES = False
-OCR_IMAGE = True
-COPY_TAGS_TO_IPTC = False
-GET_COLORS_IMAGE = False
-ID_OBJ = False
-RATE_IMAGE = "True"
-MOVE_FILE_IMAGE = False
-WRITE_TAGS_TO_IMAGE = False
+CAPTION_IMAGE = "False"
+COMMENT_IMAGE = "False"
+TAG_IMAGE = "False"
+REVERSE_GEOTAG = "True"
+CLASSIFY_FACES = "False"
+OCR_IMAGE = "False"
+COPY_TAGS_TO_IPTC = "False"
+GET_COLORS_IMAGE = "False"
+ID_OBJ = "False"
+RATE_IMAGE = "False"
+MOVE_FILE_IMAGE = "False"
+WRITE_TAGS_TO_IMAGE = "True"
 
 CAPTION_VIDEO = "True"
 REVERSE_GEOTAG_VIDEO = "True"
@@ -175,13 +184,13 @@ IMG_OCR_LANG = "en"
 
 # --------------------------- Image rating --------------------------
 IMAGE_RATING_URL = "http://192.168.1.121:9997/predictions"
-OVERWRITE_RATING="False"
+OVERWRITE_RATING = "False"
 IMAGE_RATING_HEADERS = {"Content-Type": "application/json"}
 
 # --------------------------- GPT --------------------------
 
 PROMPT = "Please generate a vivid description of the attached image, including the emotions and feelings it evokes. Additionally, provide a commentary on the photographic style employed and the overall quality of the image. Feel free to explore the composition, lighting, colors, and any other relevant aspects that contribute to the image impact. Your description should capture both the tangible elements of the scene and the intangible emotions it conveys, while also critically assessing the technical and artistic prowess demonstrated in the photograph."
-PROMPT = "Please generate a vivid description of the attached image, identify and name the landmarks or city depicted. Describe the emotions and feelings the image evokes.   Additionally, provide a commentary on the photographic style employed and the overall quality of the image. Feel free to explore the composition, lighting, colors, and any other relevant aspects that contribute to the image's impact. Your description should capture both the tangible elements of the scene and the intangible emotions it conveys, while also critically assessing the technical and artistic prowess demonstrated in the photograph."
+PROMPT = "Please generate a vivid description of the attached image, identify and name the landmarks or city depicted. Describe the emotions and feelings the image evokes.   Additionally, provide a commentary on the photographic style employed and the overall quality of the image. Feel free to explore the composition, lighting, colors, and any other relevant aspects that contribute to the image's impact. Your description should capture both the tangible elements of the scene and the intangible emotions it conveys, while also critically assessing the technical and artistic prowess demonstrated in the photograph. Provide also suggestions on how to improve the photo in terms of lighting, technique subjects or anything else"
 # --------------------------- Image OBJ ID --------------------------
 OBJ_ID_HEADER = {"content-type": "application/json"}
 OBJ_ID_API_URL = "http://192.168.1.121:9998/predictions"
