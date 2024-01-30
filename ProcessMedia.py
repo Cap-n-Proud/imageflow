@@ -701,6 +701,7 @@ class ProcessMedia:
         try:
             payload = (
                 '{"image":"'
+                + str(fm_config.IMAGES_SERVER_URL)
                 + str(fname)
                 + '" ,"confidence":"'
                 + str(fm_config.OCR_MIN_CONFIDENCE)
@@ -874,6 +875,7 @@ class ProcessMedia:
         # Step 1: Resize the image and save it to a temporary file
         try:
             resized_fname = await self.resize_image(fname)
+            self.logger.debug(resized_fname[:300])
             # print(resized_fname[:300])
         except Exception as e:
             error_message = (
@@ -902,7 +904,7 @@ class ProcessMedia:
             temp_file_data = temp_file.read()
             self.logger.debug("Temporary file content (first 300 characters):")
             self.logger.debug(temp_file_data[:300])
-            print(temp_file_data[:300])
+            # print(temp_file_data[:300])
         # print("Step4")
         # output = replicate.run(
         #     "daanelson/minigpt-4:b96a2f33cc8e4b0aa23eacfce731b9c41a7d9466d9ed4e167375587b54db9423",
@@ -929,7 +931,7 @@ class ProcessMedia:
         output = ""
         for item in o:
             # https://replicate.com/yorickvp/llava-13b/versions/e272157381e2a3bf12df3a8edd1f38d1dbd736bbb7437277c8b34175f8fce358/api#output-schema
-            print(item, end="")
+            # print(item, end="")
             output = output + item
         return output
 
@@ -952,7 +954,6 @@ class ProcessMedia:
         channel = ClarifaiChannel.get_json_channel()
         stub = service_pb2_grpc.V2Stub(channel)
         metadata = self.s.CLARIFAI_AUTH
-
         post_model_outputs_response = stub.PostModelOutputs(
             service_pb2.PostModelOutputsRequest(
                 model_id="general-image-recognition",
@@ -1353,9 +1354,7 @@ class ProcessMedia:
                 mapped = int(await self.map_ranking(ai_r))
             try:
                 await self.set_rating(mapped, fname)
-                self.logger.info(
-                    f"|generate_rating| {fname}, {ai_r}, {hu_r}, {mapped}, {(hu_r-mapped)}"
-                )
+                self.logger.info(f"|generate_rating| {fname}, {ai_r}, {hu_r}, {mapped}")
             except Exception as e:
                 self.logger.error(f"|generate_rating|  {e}")
         return mapped

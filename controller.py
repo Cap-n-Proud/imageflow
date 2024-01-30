@@ -1,11 +1,12 @@
 # Docker
-# screen python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" --captionImage=True --rateImage=True --overwriteRating=False --idObjImage=True --moveFileImage=True --tagImage=True --commentImage=True --writeTagToImage=True --reverseGeotag=True --classifyFaces=True --ocrImage=True --getColorsImage=True --copyTagsToIPTC=False --captionVideo=True --idObjVideo=True --getColorsVideo=True --moveFileVideo=True --reverseGeotagVideo=True --classifyFacesVideo=True --ocrVideo=True --transcribeVideo=True
+# screen python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl" --captionImage=False --rateImage=True --overwriteRating=False --idObjImage=True --moveFileImage=True --tagImage=True --commentImage=True --writeTagToImage=True --reverseGeotag=True --classifyFaces=True --ocrImage=True --getColorsImage=True --copyTagsToIPTC=False --captionVideo=True --idObjVideo=True --getColorsVideo=True --moveFileVideo=True --reverseGeotagVideo=True --classifyFacesVideo=True --ocrVideo=True --transcribeVideo=True
+# screen python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 
 # Test
 # python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/001-Process/IN/" -id "/mnt/Photos/001-Process/OUT/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 
 # DEV
-# screen python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/Photos/000-InstantUpload/" -id "/mnt/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
+# screen python3 /mnt/Software/200-Apps/imageflow/controller.py -iw "/mnt/VDev/Photos/000-InstantUpload/" -id "/mnt/VDev/Photos/005-PhotoBook/" -l "/mnt/Apps_Config/imageflow/" -s "/mnt/No_Share/secrets/imageflow/" -fc "/mnt/Apps_Config/imageflow/faceClassifier.pkl"
 
 # ERRORS: video process colors are not captured correctley, GS reverse GEO does not work
 
@@ -186,7 +187,7 @@ async def process_media(imagesQueue, processMedia, logger, args):
                 await processMedia.write_keywords_metadata_to_image_file(
                     file_path,
                     keywords=KW,
-                    caption=str(caption) + "\n" + str(comment),
+                    caption=str(caption) + "\n" + str(comment) + str(ocr),
                     subject=ocr,
                 )
                 if fm_config.COPY_TAGS_TO_IPTC == True:
